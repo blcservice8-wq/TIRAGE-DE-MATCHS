@@ -458,7 +458,7 @@
       </div>
     </div>
     <div class="header-actions">
-      <button class="ghost" id="open-poster">🖼 Affiche du jour</button>
+      <button class="ghost" id="open-poster">🖼 Affiche MATCH du jour</button>
       <button class="ghost" id="open-account">🔑 Compte</button>
       <button class="ghost" id="do-logout">🔒 Déconnexion</button>
     </div>
@@ -472,10 +472,19 @@
 <div class="poster-overlay" id="poster-overlay">
   <div class="poster-modal">
     <div class="poster-modal-head">
-      <h2>Affiche de la rencontre du jour</h2>
+      <h2>Affiche du match du jour</h2>
       <button class="ghost" id="poster-close">✕ Fermer</button>
     </div>
     <div class="poster-form">
+      <div class="field">
+        <label>Type de match</label>
+        <select id="poster-type">
+          <option value="MATCH DE POULE">Match de poule</option>
+          <option value="QUART DE FINALE">Quart de finale</option>
+          <option value="DEMI-FINALE">Demi-finale</option>
+          <option value="FINALE">Finale</option>
+        </select>
+      </div>
       <div class="field">
         <label>Équipe A</label>
         <select id="poster-teamA"></select>
@@ -500,9 +509,13 @@
         <label>Structure organisatrice</label>
         <input id="poster-structure" type="text" placeholder="Nom de la structure">
       </div>
+      <div class="field">
+        <label>Logo sponsor (optionnel)</label>
+        <input id="poster-sponsor" type="file" accept="image/*">
+      </div>
     </div>
     <div class="poster-canvas-wrap">
-      <canvas id="poster-canvas" width="800" height="1120"></canvas>
+      <canvas id="poster-canvas" width="800" height="1200"></canvas>
     </div>
     <div class="row-actions">
       <button class="primary" id="poster-generate">🎨 Générer l'affiche</button>
@@ -1501,6 +1514,8 @@ document.addEventListener('input', function(e){
 });
 
 // ---- Affiche de la rencontre du jour ----
+let posterSponsorDataUrl = null;
+
 function openPosterModal(){
   if(state.teams.length < 2){
     alert("Ajoutez au moins deux équipes (étape Liste) avant de créer une affiche.");
@@ -1512,8 +1527,11 @@ function openPosterModal(){
   selA.innerHTML = optionsHtml;
   selB.innerHTML = optionsHtml;
   if(state.teams[1]) selB.value = state.teams[1].id;
+  document.getElementById('poster-type').value = 'MATCH DE POULE';
   document.getElementById('poster-structure').value = state.config.responsable || '';
   document.getElementById('poster-date').value = state.config.date || '';
+  posterSponsorDataUrl = null;
+  document.getElementById('poster-sponsor').value = '';
   document.getElementById('poster-download').style.display = 'none';
   document.getElementById('poster-overlay').classList.add('open');
 }
@@ -1555,6 +1573,7 @@ async function generatePoster(){
     alert("Choisissez deux équipes différentes.");
     return;
   }
+  const matchType = document.getElementById('poster-type').value || 'MATCH DE POULE';
   const heure = document.getElementById('poster-heure').value;
   const lieu = document.getElementById('poster-lieu').value;
   const date = document.getElementById('poster-date').value;
@@ -1566,13 +1585,68 @@ async function generatePoster(){
 
   if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
 
-  // background
+  // ---- fond : ciel de nuit dégradé ----
   const grad = ctx.createLinearGradient(0,0,W*0.3,H);
   grad.addColorStop(0,'#2E76A8');
   grad.addColorStop(0.5,'#123B5E');
   grad.addColorStop(1,'#061c2c');
   ctx.fillStyle = grad;
   ctx.fillRect(0,0,W,H);
+
+  // ---- décor stade stylisé ----
+  // gradins incurvés (haut)
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.07)';
+  for(let tier=0; tier<3; tier++){
+    const ty = 60 + tier*26;
+    ctx.beginPath();
+    ctx.moveTo(-40, ty);
+    ctx.quadraticCurveTo(W/2, ty-42-tier*8, W+40, ty);
+    ctx.lineTo(W+40, ty+16);
+    ctx.quadraticCurveTo(W/2, ty-26-tier*8, -40, ty+16);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // pointillés "foule" sur le dernier gradin
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = '#EAF6FF';
+  for(let i=0;i<70;i++){
+    const px = (i*11.7) % (W+40) - 20;
+    const py = 44 + Math.sin(i*1.3)*6 + (Math.sin(i*7)>0? 0:4);
+    ctx.beginPath(); ctx.arc(px, py, 1.6, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+
+  // pylônes + projecteurs
+  function floodlight(x, topY){
+    ctx.save();
+    ctx.strokeStyle = 'rgba(234,246,255,0.35)';
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(x, topY); ctx.lineTo(x, topY+120); ctx.stroke();
+    ctx.fillStyle = 'rgba(234,246,255,0.5)';
+    ctx.fillRect(x-26, topY-10, 52, 12);
+    // faisceaux lumineux
+    ctx.globalAlpha = 0.10;
+    ctx.fillStyle = '#EAF6FF';
+    ctx.beginPath();
+    ctx.moveTo(x, topY);
+    ctx.lineTo(x-90, topY+230);
+    ctx.lineTo(x+90, topY+230);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+  floodlight(46, 14);
+  floodlight(W-46, 14);
+
+  // pelouse / lueur verte en bas de l'affiche
+  ctx.save();
+  const pitchGlow = ctx.createRadialGradient(W/2, H, 40, W/2, H, W*0.9);
+  pitchGlow.addColorStop(0, 'rgba(87,194,240,0.18)');
+  pitchGlow.addColorStop(1, 'rgba(87,194,240,0)');
+  ctx.fillStyle = pitchGlow;
+  ctx.fillRect(0, H*0.55, W, H*0.45);
+  ctx.restore();
 
   // diagonal stripe texture
   ctx.save();
@@ -1587,43 +1661,36 @@ async function generatePoster(){
   }
   ctx.restore();
 
-  // curved swoosh bands
-  ctx.fillStyle = 'rgba(255,255,255,0.06)';
-  ctx.beginPath();
-  ctx.moveTo(0, H*0.155);
-  ctx.quadraticCurveTo(W*0.5, H*0.075, W, H*0.155);
-  ctx.lineTo(W, H*0.185);
-  ctx.quadraticCurveTo(W*0.5, H*0.105, 0, H*0.185);
-  ctx.closePath();
-  ctx.fill();
-
-  // faint ball graphic bottom-left
-  ctx.save();
-  ctx.globalAlpha = 0.12;
-  ctx.font = '280px sans-serif';
-  ctx.textAlign = 'left';
-  ctx.fillText('⚽', -60, H-40);
-  ctx.restore();
-
-  // header
+  // ---- bandeau structure organisatrice ----
   ctx.textAlign = 'center';
   ctx.fillStyle = '#57C2F0';
-  ctx.font = '700 20px "JetBrains Mono", monospace';
-  ctx.fillText((structure || 'STRUCTURE ORGANISATRICE').toUpperCase(), W/2, 90);
+  ctx.font = '700 18px "JetBrains Mono", monospace';
+  ctx.fillText((structure || 'STRUCTURE ORGANISATRICE').toUpperCase(), W/2, 122);
+
+  // ---- type de match, en grand, entre deux silhouettes de trophée ----
+  ctx.font = '400 40px Anton, sans-serif';
+  const typeWidth = ctx.measureText(matchType).width;
+  const trophySize = 46;
+  const trophyGap = 26;
+  ctx.font = `${trophySize}px sans-serif`;
+  ctx.globalAlpha = 0.92;
+  ctx.fillText('🏆', W/2 - typeWidth/2 - trophyGap, 170);
+  ctx.fillText('🏆', W/2 + typeWidth/2 + trophyGap, 170);
+  ctx.globalAlpha = 1;
 
   ctx.fillStyle = '#EAF6FF';
-  ctx.font = '400 56px Anton, sans-serif';
-  ctx.fillText('RENCONTRE DU JOUR', W/2, 152);
+  ctx.font = '400 40px Anton, sans-serif';
+  ctx.fillText(matchType.toUpperCase(), W/2, 178);
 
   ctx.strokeStyle = '#57C2F0';
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(W/2-100, 172); ctx.lineTo(W/2+100,172); ctx.stroke();
+  ctx.moveTo(W/2-100, 198); ctx.lineTo(W/2+100,198); ctx.stroke();
 
   const eyebrow = `${state.config.sport} · ${state.config.categorie} ${state.config.sexe}`;
   ctx.fillStyle = 'rgba(246,244,236,0.6)';
   ctx.font = '400 18px "JetBrains Mono", monospace';
-  ctx.fillText(eyebrow, W/2, 205);
+  ctx.fillText(eyebrow, W/2, 230);
 
   // team logos / initials
   const [imgA, imgB] = await Promise.all([loadImageAsync(teamA.logo), loadImageAsync(teamB.logo)]);
@@ -1667,10 +1734,17 @@ async function generatePoster(){
   wrapCanvasText(ctx, teamA.name.toUpperCase(), leftX, circleY+circleR+48, 230, 32);
   wrapCanvasText(ctx, teamB.name.toUpperCase(), rightX, circleY+circleR+48, 230, 32);
 
-  // bottom info bar
-  const barY = H*0.80;
+  // ---- message fair-play ----
+  ctx.fillStyle = '#57C2F0';
+  ctx.font = 'italic 700 20px Oswald, sans-serif';
+  ctx.fillText('★ QUE LE MEILLEUR GAGNE DANS LE FAIR-PLAY ★', W/2, H*0.735);
+
+  // ---- bandeau date / heure / lieu ----
+  const barY = H*0.775;
+  const sponsorBandH = 110;
+  const barBottom = H - sponsorBandH;
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.fillRect(0, barY, W, H-barY);
+  ctx.fillRect(0, barY, W, barBottom-barY);
   ctx.strokeStyle = '#57C2F0';
   ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(0,barY); ctx.lineTo(W,barY); ctx.stroke();
@@ -1686,6 +1760,29 @@ async function generatePoster(){
   wrapCanvasText(ctx, `${date || '—'}  •  ${heure || '—'}`, W*0.27, barY+86, 260, 32);
   wrapCanvasText(ctx, lieu || '—', W*0.73, barY+86, 260, 32);
 
+  // ---- bandeau sponsor (bas de l'affiche) ----
+  ctx.fillStyle = 'rgba(255,255,255,0.04)';
+  ctx.fillRect(0, barBottom, W, sponsorBandH);
+  ctx.strokeStyle = 'rgba(87,194,240,0.4)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0,barBottom); ctx.lineTo(W,barBottom); ctx.stroke();
+
+  ctx.fillStyle = 'rgba(234,246,255,0.5)';
+  ctx.font = '700 12px "JetBrains Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('PARTENAIRE', W/2, barBottom+22);
+
+  if(posterSponsorDataUrl){
+    const sponsorImg = await loadImageAsync(posterSponsorDataUrl);
+    if(sponsorImg){
+      const maxH = 62, maxW = 260;
+      let dw = sponsorImg.width, dh = sponsorImg.height;
+      const scale = Math.min(maxW/dw, maxH/dh, 1);
+      dw *= scale; dh *= scale;
+      ctx.drawImage(sponsorImg, W/2 - dw/2, barBottom + 30, dw, dh);
+    }
+  }
+
   const downloadBtn = document.getElementById('poster-download');
   downloadBtn.style.display = 'inline-block';
   downloadBtn.onclick = ()=>{
@@ -1697,6 +1794,13 @@ async function generatePoster(){
   };
 }
 
+document.getElementById('poster-sponsor').addEventListener('change', (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file){ posterSponsorDataUrl = null; return; }
+  const reader = new FileReader();
+  reader.onload = ()=>{ posterSponsorDataUrl = reader.result; };
+  reader.readAsDataURL(file);
+});
 document.getElementById('open-poster').onclick = openPosterModal;
 document.getElementById('open-account').onclick = openAccountScreen;
 document.getElementById('do-logout').onclick = logout;
