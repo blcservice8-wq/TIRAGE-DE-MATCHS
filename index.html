@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tirage de Poule — Grille jusqu'en finale</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --pitch: #163527;
+    --pitch-2: #1F4A36;
+    --chalk: #F6F4EC;
+    --whistle: #E8A93A;
+    --card-red: #C1443C;
+    --ink: #14201A;
+    --line: rgba(246,244,236,0.16);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse 900px 600px at 50% 0%, #245c3f 0%, transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 100%, #1a4530 0%, transparent 55%),
+      repeating-linear-gradient(115deg, rgba(255,255,255,0.025) 0 3px, rgba(255,255,255,0) 3px 34px),
+      linear-gradient(160deg, #1c4531 0%, var(--pitch) 45%, #0f2419 100%);
+    color:var(--chalk);
+    font-family:'Oswald', sans-serif;
+    min-height:100vh;
+    position:relative;
+  }
+  .pitch-decor{
+    position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+  }
+  .pitch-decor svg{width:100%;height:100%;}
+  .wrap{max-width:1080px;margin:0 auto;padding:28px 20px 80px;position:relative;z-index:1;}
+  header{
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    border-bottom:1px solid var(--line);
+    padding-bottom:18px;margin-bottom:26px;flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:14px;}
+  .brand .ball{
+    width:44px;height:44px;border-radius:50%;
+    background:var(--whistle);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--ink);
+    box-shadow:0 0 0 3px rgba(232,169,58,0.25);
+  }
+  h1{
+    font-family:'Anton', sans-serif;
+    font-weight:400;
+    letter-spacing:0.5px;
+    font-size:clamp(22px,3.4vw,32px);
+    margin:0;
+    text-transform:uppercase;
+  }
+  .subtitle{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--whistle);margin-top:2px;}
+
+  .steps{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:28px;}
+  .step-btn{
+    font-family:'JetBrains Mono',monospace;
+    background:transparent;border:1px solid var(--line);color:var(--chalk);
+    padding:9px 14px;border-radius:100px;cursor:pointer;font-size:12px;
+    display:flex;align-items:center;gap:8px;opacity:0.55;transition:all .2s;
+  }
+  .step-btn .num{
+    width:18px;height:18px;border-radius:50%;background:rgba(246,244,236,0.12);
+    display:flex;align-items:center;justify-content:center;font-size:10px;
+  }
+  .step-btn.active{opacity:1;border-color:var(--whistle);background:rgba(232,169,58,0.08);}
+  .step-btn.active .num{background:var(--whistle);color:var(--ink);}
+  .step-btn:disabled{cursor:not-allowed;}
+
+  .panel{
+    background:rgba(20,32,26,0.55);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:26px;
+    backdrop-filter:blur(4px);
+  }
+  .panel h2{
+    font-family:'Anton',sans-serif;font-weight:400;text-transform:uppercase;
+    font-size:20px;margin:0 0 20px;letter-spacing:0.5px;
+  }
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:640px){.grid{grid-template-columns:1fr;}}
+  label{
+    display:block;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;
+    color:rgba(246,244,236,0.6);margin-bottom:6px;
+  }
+  input, select{
+    width:100%;background:rgba(246,244,236,0.06);
+    border:1px solid var(--line);border-radius:8px;
+    color:var(--chalk);padding:11px 12px;font-family:'Oswald',sans-serif;font-size:15px;
+  }
+  input:focus, select:focus{outline:none;border-color:var(--whistle);}
+  .field{margin-bottom:16px;}
+  .row-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:22px;flex-wrap:wrap;}
+
+  button.primary{
+    font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;
+    background:var(--whistle);color:var(--ink);border:none;
+    padding:13px 22px;border-radius:8px;cursor:pointer;letter-spacing:0.5px;
+    text-transform:uppercase;transition:transform .15s;
+  }
+  button.primary:hover{transform:translateY(-1px);}
+  button.primary:disabled{opacity:0.35;cursor:not-allowed;transform:none;}
+  button.ghost{
+    font-family:'JetBrains Mono',monospace;font-size:13px;
+    background:transparent;color:var(--chalk);border:1px solid var(--line);
+    padding:12px 18px;border-radius:8px;cursor:pointer;letter-spacing:0.5px;text-transform:uppercase;
+  }
+  button.danger{color:var(--card-red);border-color:rgba(193,68,60,0.4);}
+
+  .team-add{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;align-items:flex-end;}
+  .team-add .field{flex:1;min-width:180px;margin-bottom:0;}
+  .logo-zone-field{flex:1;min-width:220px;}
+  .logo-zone{
+    display:flex;align-items:center;gap:10px;cursor:pointer;
+    background:rgba(246,244,236,0.06);border:1px dashed var(--line);border-radius:8px;
+    padding:8px 12px;transition:border-color .15s;
+  }
+  .logo-zone:hover{border-color:var(--whistle);}
+  .logo-zone-preview{
+    width:38px;height:38px;border-radius:50%;background:var(--pitch-2);flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+    color:var(--whistle);font-size:16px;border:1px solid var(--line);
+  }
+  .logo-zone-preview img{width:100%;height:100%;object-fit:cover;}
+  .logo-zone-text{font-size:12px;color:rgba(246,244,236,0.5);}
+
+  .team-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;}
+  .team-row{
+    display:flex;align-items:center;gap:12px;
+    background:rgba(246,244,236,0.05);border:1px solid var(--line);
+    padding:9px 12px;border-radius:8px;
+  }
+  .avatar-wrap{position:relative;flex-shrink:0;}
+  .avatar{
+    width:34px;height:34px;border-radius:50%;background:var(--pitch-2);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;
+    border:1px solid var(--line);overflow:hidden;
+  }
+  .avatar img{width:100%;height:100%;object-fit:cover;}
+  .avatar-wrap .logo-edit-btn{
+    position:absolute;bottom:-3px;right:-3px;width:16px;height:16px;border-radius:50%;
+    background:var(--whistle);color:var(--ink);border:2px solid var(--pitch);
+    font-size:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;
+  }
+  .team-row .name{flex:1;font-size:15px;}
+  .team-row button{
+    background:none;border:none;color:var(--card-red);cursor:pointer;font-size:16px;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .empty{color:rgba(246,244,236,0.45);font-size:13px;padding:20px 0;text-align:center;}
+
+  .poule-count{display:flex;align-items:center;gap:14px;margin-bottom:22px;}
+  .poule-count .stepper{display:flex;align-items:center;gap:10px;background:rgba(246,244,236,0.05);border:1px solid var(--line);border-radius:8px;padding:6px 10px;}
+  .stepper button{background:none;border:none;color:var(--whistle);font-size:18px;cursor:pointer;font-family:'JetBrains Mono',monospace;width:26px;}
+  .stepper .val{font-family:'JetBrains Mono',monospace;font-size:16px;min-width:20px;text-align:center;}
+
+  /* Draw animation */
+  .urn{
+    display:flex;justify-content:center;align-items:center;
+    height:150px;position:relative;margin-bottom:10px;
+  }
+  .ball-fly{
+    position:absolute;width:36px;height:36px;border-radius:50%;
+    background:var(--whistle);color:var(--ink);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'JetBrains Mono',monospace;font-weight:700;font-size:11px;
+    animation:pop 0.55s ease-out;
+  }
+  @keyframes pop{
+    0%{transform:scale(0) translateY(20px);opacity:0;}
+    60%{transform:scale(1.15) translateY(-6px);opacity:1;}
+    100%{transform:scale(1) translateY(0);opacity:1;}
+  }
+
+  .poules-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:20px;}
+  .poule-card{
+    background:rgba(246,244,236,0.05);border:1px solid var(--line);border-radius:10px;padding:16px;
+  }
+  .poule-card h3{
+    font-family:'Anton',sans-serif;font-weight:400;margin:0 0 12px;font-size:16px;
+    color:var(--whistle);text-transform:uppercase;display:flex;align-items:center;gap:8px;
+  }
+  .poule-card h3 .letter{
+    width:24px;height:24px;border-radius:50%;background:var(--whistle);color:var(--ink);
+    display:flex;align-items:center;justify-content:center;font-size:12px;
+  }
+  .poule-team{
+    display:flex;align-items:center;gap:10px;padding:7px 0;font-size:14px;
+    border-bottom:1px dashed var(--line);
+  }
+  .poule-team:last-child{border-bottom:none;}
+  .qualify{
+    margin-left:auto;display:flex;align-items:center;gap:6px;cursor:pointer;
+    font-size:10px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;
+    color:rgba(246,244,236,0.5);
+  }
+  .qualify input{width:auto;accent-color:var(--whistle);}
+  .qualify.checked{color:var(--whistle);}
+
+  .poule-matches{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+  .p-match-wrap{display:flex;align-items:stretch;gap:6px;}
+  .p-match{
+    flex:1;
+    background:rgba(246,244,236,0.04);border:1px solid var(--line);border-radius:6px;padding:6px 8px;
+  }
+  .p-match-row{display:flex;align-items:center;gap:8px;font-size:12px;}
+  .p-match .pm-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .p-match .pm-score{
+    width:36px;background:rgba(246,244,236,0.08);border:1px solid var(--line);border-radius:4px;
+    color:var(--chalk);text-align:center;font-family:'JetBrains Mono',monospace;font-size:12px;padding:4px 2px;
+  }
+  .p-match .pm-vs{font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(246,244,236,0.4);}
+  .p-match-extra{display:flex;gap:8px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--line);}
+  .p-match .pm-date{
+    flex:1;background:transparent;border:none;
+    color:rgba(246,244,236,0.55);font-family:'JetBrains Mono',monospace;font-size:10px;padding:0;
+  }
+  .p-match .pm-heure{
+    width:44px;flex-shrink:0;background:transparent;border:none;
+    color:rgba(246,244,236,0.55);font-family:'JetBrains Mono',monospace;font-size:10px;padding:0;text-align:right;
+  }
+  .p-match .pm-date:focus, .p-match .pm-heure:focus{outline:none;color:var(--whistle);}
+  .p-match .pm-lieu{
+    width:100%;margin-top:5px;background:transparent;border:none;
+    color:rgba(246,244,236,0.45);font-family:'Oswald',sans-serif;font-size:11px;padding:0;
+  }
+  .p-match .pm-lieu::placeholder{color:rgba(246,244,236,0.25);}
+  .p-match .pm-lieu:focus{outline:none;color:var(--whistle);}
+  .ha-badge{
+    font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;border-radius:3px;
+    padding:1px 3px;margin:0 5px;flex-shrink:0;
+  }
+  .ha-badge.home{background:rgba(232,169,58,0.18);color:var(--whistle);}
+  .ha-badge.away{background:rgba(246,244,236,0.1);color:rgba(246,244,236,0.6);}
+
+  .calendar{display:flex;flex-direction:column;gap:10px;margin-bottom:14px;}
+  .cal-journee{background:rgba(246,244,236,0.03);border:1px solid var(--line);border-radius:8px;padding:8px 10px;}
+  .cal-journee-title{
+    font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;
+    color:var(--whistle);margin-bottom:6px;
+  }
+  .cal-row{display:flex;align-items:center;gap:6px;font-size:12px;padding:4px 0;border-top:1px dashed var(--line);flex-wrap:wrap;}
+  .cal-row:first-of-type{border-top:none;}
+  .cal-team{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:70px;}
+  .cal-team.right{text-align:right;}
+  .cal-vs{font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(246,244,236,0.4);}
+  .cal-date{width:80px;flex-shrink:0;text-align:right;}
+  .cal-heure{width:44px;flex-shrink:0;text-align:right;}
+  .cal-lieu{width:100%;order:99;color:rgba(246,244,236,0.4);font-size:10px;}
+  .reorder-controls{display:flex;flex-direction:column;gap:3px;justify-content:center;}
+  .reorder-btn{
+    width:22px;height:22px;border-radius:5px;
+    background:rgba(246,244,236,0.06);border:1px solid var(--line);color:var(--whistle);
+    font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .reorder-btn:hover:not(:disabled){background:rgba(232,169,58,0.15);}
+  .reorder-btn:disabled{opacity:0.2;cursor:not-allowed;}
+  .standings{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px;}
+  .standings th{
+    text-align:left;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;
+    text-transform:uppercase;color:rgba(246,244,236,0.45);padding:4px 6px;border-bottom:1px solid var(--line);
+  }
+  .standings td{padding:5px 6px;border-bottom:1px dashed var(--line);}
+  .standings tr.qualified td{color:var(--whistle);font-weight:600;}
+  .standings tr.qualified{background:rgba(232,169,58,0.07);}
+  .standings td.rk{font-family:'JetBrains Mono',monospace;width:18px;}
+  .section-label{
+    font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;
+    color:rgba(246,244,236,0.45);margin:12px 0 6px;
+  }
+
+  /* Bracket */
+  .bracket-scroll{overflow-x:auto;padding-bottom:10px;}
+  .bracket{display:flex;gap:44px;min-width:max-content;padding:20px 4px;}
+  .round{display:flex;flex-direction:column;justify-content:space-around;gap:24px;min-width:220px;}
+  .round-title{
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:2px;
+    text-transform:uppercase;color:var(--whistle);text-align:center;margin-bottom:8px;
+  }
+  .match{
+    background:rgba(246,244,236,0.05);border:1px solid var(--line);border-radius:10px;
+    padding:10px;position:relative;
+  }
+  .match.final{border-color:var(--whistle);box-shadow:0 0 0 1px rgba(232,169,58,0.3);}
+  .match-meta{display:flex;gap:6px;align-items:center;margin-bottom:4px;}
+  .match-date{
+    flex:1;background:transparent;border:none;border-bottom:1px solid var(--line);
+    color:rgba(246,244,236,0.55);font-family:'JetBrains Mono',monospace;font-size:10px;
+    padding:2px 0 6px;
+  }
+  .match-date:focus{outline:none;border-color:var(--whistle);}
+  .match-heure{
+    width:46px;flex-shrink:0;background:transparent;border:none;border-bottom:1px solid var(--line);
+    color:rgba(246,244,236,0.55);font-family:'JetBrains Mono',monospace;font-size:10px;
+    padding:2px 0 6px;text-align:right;
+  }
+  .match-heure:focus{outline:none;border-color:var(--whistle);}
+  .match-lieu{
+    width:100%;background:transparent;border:none;border-bottom:1px dashed var(--line);
+    color:rgba(246,244,236,0.5);font-family:'Oswald',sans-serif;font-size:11px;
+    padding:2px 0 8px;margin-bottom:4px;
+  }
+  .match-lieu::placeholder{color:rgba(246,244,236,0.3);}
+  .match-lieu:focus{outline:none;border-bottom-color:var(--whistle);}
+  .m-team{
+    display:flex;align-items:center;gap:8px;padding:6px 6px;border-radius:6px;cursor:pointer;
+    font-size:13px;
+  }
+  .m-team:hover{background:rgba(246,244,236,0.06);}
+  .m-team.winner{background:rgba(232,169,58,0.15);font-weight:600;}
+  .m-team.empty-slot{color:rgba(246,244,236,0.3);font-style:italic;cursor:default;}
+  .m-team.empty-slot:hover{background:none;}
+  .champion-banner{
+    display:flex;flex-direction:column;justify-content:center;align-items:center;
+    min-width:220px;text-align:center;
+  }
+  .champion-banner .trophy{font-size:34px;margin-bottom:10px;}
+  .champion-banner .name{font-family:'Anton',sans-serif;font-size:22px;color:var(--whistle);text-transform:uppercase;}
+  .champion-banner .tag{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:rgba(246,244,236,0.5);margin-top:6px;}
+
+  .grille-heading{text-align:center;margin-bottom:6px;}
+  .grille-eyebrow{
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;
+    color:var(--whistle);margin-bottom:4px;
+  }
+  .grille-title{
+    font-family:'Anton',sans-serif;font-weight:400;text-transform:uppercase;
+    font-size:clamp(26px,4vw,40px);margin:0 0 14px;letter-spacing:1px;text-align:center;
+  }
+
+  .bracket.mirror{align-items:center;}
+  .bracket-center{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:10px;min-width:210px;padding:0 10px;
+  }
+  .bracket-center.standalone{padding:20px 10px;}
+  .round-title.final-title{color:var(--whistle);font-size:12px;}
+  .trophy-graphic{
+    width:74px;height:74px;border-radius:50%;
+    background:radial-gradient(circle at 50% 40%, rgba(232,169,58,0.35), rgba(232,169,58,0) 70%);
+    display:flex;align-items:center;justify-content:center;font-size:38px;margin-bottom:2px;
+  }
+  .seed{
+    font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;color:var(--whistle);
+    background:rgba(232,169,58,0.12);border-radius:4px;padding:1px 4px;flex-shrink:0;
+  }
+  .editable-team{cursor:default;}
+  .team-name-input{
+    flex:1;background:transparent;border:none;border-bottom:1px dashed var(--line);
+    color:var(--chalk);font-family:'Oswald',sans-serif;font-size:13px;padding:3px 2px;
+  }
+  .team-name-input:focus{outline:none;border-bottom-color:var(--whistle);}
+  .team-name-input::placeholder{color:rgba(246,244,236,0.3);}
+  .champion-name-input{
+    background:transparent;border:none;border-bottom:1px dashed var(--whistle);
+    color:var(--whistle);font-family:'Anton',sans-serif;font-size:20px;text-transform:uppercase;
+    text-align:center;padding:4px 6px;width:100%;
+  }
+  .champion-name-input:focus{outline:none;}
+  .champion-name-input::placeholder{color:rgba(232,169,58,0.4);}
+
+  .meta-line{
+    font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(246,244,236,0.5);
+    display:flex;gap:18px;flex-wrap:wrap;margin-bottom:22px;
+  }
+  .meta-line b{color:var(--chalk);font-weight:500;}
+
+  .poster-overlay{
+    display:none;position:fixed;inset:0;z-index:999;
+    background:rgba(10,18,14,0.82);backdrop-filter:blur(3px);
+    align-items:center;justify-content:center;padding:20px;
+  }
+  .poster-overlay.open{display:flex;}
+  .poster-modal{
+    background:var(--pitch);border:1px solid var(--line);border-radius:14px;
+    padding:22px;max-width:520px;width:100%;max-height:92vh;overflow-y:auto;
+  }
+  .poster-modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  .poster-modal-head h2{
+    font-family:'Anton',sans-serif;font-weight:400;text-transform:uppercase;font-size:18px;margin:0;
+  }
+  .poster-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+  .poster-form .field{margin-bottom:0;}
+  .poster-canvas-wrap{
+    background:rgba(0,0,0,0.2);border:1px solid var(--line);border-radius:10px;
+    padding:10px;display:flex;justify-content:center;margin-bottom:14px;
+  }
+  #poster-canvas{width:100%;max-width:340px;height:auto;border-radius:6px;}
+
+  @media print{
+    body{background:white;color:black;}
+    .steps, header, .no-print, .pitch-decor, .poster-overlay{display:none !important;}
+    .panel{border:none;background:white;}
+    .match, .poule-card{border:1px solid #999;}
+  }
+</style>
+</head>
+<body>
+<div class="pitch-decor" aria-hidden="true">
+  <svg viewBox="0 0 1200 1400" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+    <path d="M0,180 Q600,60 1200,180 L1200,230 Q600,110 0,230 Z" fill="rgba(255,255,255,0.05)"/>
+    <path d="M0,1180 Q600,1300 1200,1180 L1200,1230 Q600,1350 0,1230 Z" fill="rgba(255,255,255,0.05)"/>
+    <circle cx="150" cy="1240" r="230" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="18"/>
+    <path d="M150,1080 L100,1140 L120,1210 L180,1210 L200,1140 Z" fill="rgba(255,255,255,0.045)"/>
+    <path d="M150,1400 L100,1340 L120,1270 L180,1270 L200,1340 Z" fill="rgba(255,255,255,0.045)"/>
+    <path d="M950,120 L1200,-30 L1200,60 L1010,170 Q930,220 900,300 L860,270 Q900,180 950,120 Z" fill="rgba(255,255,255,0.045)"/>
+  </svg>
+</div>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="ball">A</div>
+      <div>
+        <h1>Tirage de Poule</h1>
+        <div class="subtitle">Grille jusqu'en finale</div>
+      </div>
+    </div>
+    <button class="ghost" id="open-poster">🖼 Affiche du jour</button>
+  </header>
+
+  <div class="steps" id="steps"></div>
+
+  <div id="content"></div>
+</div>
+
+<div class="poster-overlay" id="poster-overlay">
+  <div class="poster-modal">
+    <div class="poster-modal-head">
+      <h2>Affiche de la rencontre du jour</h2>
+      <button class="ghost" id="poster-close">✕ Fermer</button>
+    </div>
+    <div class="poster-form">
+      <div class="field">
+        <label>Équipe A</label>
+        <select id="poster-teamA"></select>
+      </div>
+      <div class="field">
+        <label>Équipe B</label>
+        <select id="poster-teamB"></select>
+      </div>
+      <div class="field">
+        <label>Heure</label>
+        <input id="poster-heure" class="time-text" type="text" placeholder="hh:mm" maxlength="5" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label>Lieu</label>
+        <input id="poster-lieu" type="text" placeholder="Lieu de la rencontre">
+      </div>
+      <div class="field">
+        <label>Date</label>
+        <input id="poster-date" class="date-text" type="text" placeholder="jj/mm/aaaa" maxlength="10" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label>Structure organisatrice</label>
+        <input id="poster-structure" type="text" placeholder="Nom de la structure">
+      </div>
+    </div>
+    <div class="poster-canvas-wrap">
+      <canvas id="poster-canvas" width="800" height="1120"></canvas>
+    </div>
+    <div class="row-actions">
+      <button class="primary" id="poster-generate">🎨 Générer l'affiche</button>
+      <button class="ghost" id="poster-download" style="display:none;">⬇ Télécharger (PNG)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'tirage_de_poule_v1';
+
+let state = {
+  step: 0,
+  config: { sport: 'FOOTBALL', categorie: 'SENIORS', sexe: 'H', poids: '', date: '', responsable: '' },
+  teams: [],       // {id, name, logo}
+  nbPoules: 4,
+  poules: null,       // {A:[team,...], ...}
+  pouleMatches: null, // {A:[{aId,bId,scoreA,scoreB}, ...], ...}
+  finalPhase: null,   // crossed knockout for the 2-poule format {demi1WinnerId, demi2WinnerId, finalWinnerId, dates}
+  bracket: null       // {rounds: [[match,...], ...]}
+};
+
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function save(){ try{ localStorage.__noop; }catch(e){} } // storage disabled per environment; state kept in memory only
+
+function render(){
+  renderSteps();
+  const c = document.getElementById('content');
+  if(state.step===0) c.innerHTML = renderSetup();
+  else if(state.step===1) c.innerHTML = renderTeams();
+  else if(state.step===2) c.innerHTML = renderTirage();
+  else if(state.step===3) c.innerHTML = renderBracket();
+  attachHandlers();
+}
+
+function renderSteps(){
+  const labels = ['1. Configuration','2. Liste','3. Tirage des poules','4. Grille finale'];
+  const el = document.getElementById('steps');
+  el.innerHTML = labels.map((l,i)=>{
+    const disabled = i===1 && false;
+    return `<button class="step-btn ${state.step===i?'active':''}" data-goto="${i}">
+      <span class="num">${i+1}</span>${l.replace(/^\d+\.\s/,'')}
+    </button>`;
+  }).join('');
+}
+
+function renderSetup(){
+  const cfg = state.config;
+  return `
+  <div class="panel">
+    <h2>Configuration du tirage</h2>
+    <div class="grid">
+      <div class="field">
+        <label>Structure organisatrice</label>
+        <input id="cfg-responsable" value="${cfg.responsable}" placeholder="Nom de la structure / du responsable">
+      </div>
+      <div class="field">
+        <label>Date du tirage</label>
+        <input id="cfg-date" type="text" class="date-text" placeholder="jj/mm/aaaa" maxlength="10" inputmode="numeric" value="${cfg.date}">
+      </div>
+      <div class="field">
+        <label>Type de sport</label>
+        <select id="cfg-sport">
+          ${['FOOTBALL','TAEKWONDO','BASKETBALL'].map(s=>`<option ${cfg.sport===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label>Catégorie d'athlète</label>
+        <select id="cfg-categorie">
+          ${['SENIORS','CADETS','MINIME','BENJAMINS'].map(s=>`<option ${cfg.categorie===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label>Sexe</label>
+        <select id="cfg-sexe">
+          <option value="H" ${cfg.sexe==='H'?'selected':''}>Homme (H)</option>
+          <option value="F" ${cfg.sexe==='F'?'selected':''}>Femme (F)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Poids (si applicable)</label>
+        <input id="cfg-poids" value="${cfg.poids}" placeholder="ex : -58kg">
+      </div>
+    </div>
+    <div class="row-actions">
+      <button class="primary" id="go-teams">Continuer vers la liste →</button>
+    </div>
+  </div>`;
+}
+
+function renderTeams(){
+  const list = state.teams.map(t=>`
+    <li class="team-row">
+      <div class="avatar-wrap">
+        <div class="avatar">${t.logo?`<img src="${t.logo}">`:t.name.slice(0,2).toUpperCase()}</div>
+        <button class="logo-edit-btn" data-edit-logo="${t.id}" title="Changer le logo">✎</button>
+      </div>
+      <div class="name">${t.name}</div>
+      <button data-remove="${t.id}" title="Retirer">✕</button>
+    </li>`).join('');
+  return `
+  <div class="panel">
+    <h2>Liste des participants / équipes</h2>
+    <div class="team-add">
+      <div class="field">
+        <label>Nom de l'équipe / athlète</label>
+        <input id="new-team-name" placeholder="ex : AS Diaraf">
+      </div>
+      <div class="field logo-zone-field">
+        <label>Logo de l'équipe (optionnel)</label>
+        <div class="logo-zone" id="new-logo-picker">
+          <div class="logo-zone-preview" id="new-logo-preview">＋</div>
+          <span class="logo-zone-text">Cliquer pour choisir une image</span>
+        </div>
+        <input id="new-team-logo" type="file" accept="image/*" style="display:none;">
+      </div>
+      <button class="primary" id="add-team">Ajouter</button>
+    </div>
+    <ul class="team-list">
+      ${list || '<div class="empty">Aucune équipe ajoutée pour le moment.</div>'}
+    </ul>
+    <div class="row-actions">
+      <button class="ghost" id="back-setup">← Retour</button>
+      <button class="primary" id="go-tirage" ${state.teams.length<2?'disabled':''}>Continuer vers le tirage →</button>
+    </div>
+  </div>`;
+}
+
+function renderTirage(){
+  const n = state.teams.length;
+  return `
+  <div class="panel">
+    <h2>Tirage au sort des poules</h2>
+    <div class="meta-line">
+      <span><b>${n}</b> équipes inscrites</span>
+      <span><b>${state.config.sport}</b> — ${state.config.categorie} ${state.config.sexe}${state.config.poids?(' — '+state.config.poids):''}</span>
+    </div>
+    <div class="meta-line" style="color:rgba(246,244,236,0.65);">
+      Chaque équipe joue une fois contre chaque adversaire de sa poule. Le 1er et le 2ème de chaque poule se qualifient directement pour les phases éliminatoires (quarts, demis, finale).
+    </div>
+    <div class="poule-count">
+      <label style="margin:0;">Nombre de poules</label>
+      <div class="stepper">
+        <button id="poule-minus">−</button>
+        <span class="val" id="poule-val">${state.nbPoules}</span>
+        <button id="poule-plus">+</button>
+      </div>
+    </div>
+    <div class="urn" id="urn"></div>
+    <div class="row-actions" style="justify-content:flex-start;">
+      <button class="primary" id="launch-tirage" ${n<2?'disabled':''}>🎱 Lancer le tirage au sort</button>
+    </div>
+    <div id="poules-result"></div>
+    <div class="row-actions">
+      <button class="ghost" id="back-teams">← Retour</button>
+      <button class="ghost" id="go-bracket-blank">📋 Grille vierge (Quart → Demi → Finale)</button>
+      ${state.nbPoules===2 ? '' : `<button class="primary" id="go-bracket" ${!state.poules?'disabled':''}>Générer la grille →</button>`}
+    </div>
+  </div>`;
+}
+
+function renderBracket(){
+  if(!state.bracket){
+    return `<div class="panel"><h2>Grille jusqu'en finale</h2>
+      <div class="empty">Sélectionnez les équipes qualifiées de chaque poule, puis revenez ici.</div>
+      <div class="row-actions"><button class="ghost" id="back-tirage">← Retour au tirage</button></div>
+    </div>`;
+  }
+  const rounds = state.bracket.rounds;
+  const L = rounds.length;
+  const roundNames = computeRoundNames(L);
+  const champion = state.bracket.champion;
+
+  let bracketHtml;
+
+  if(L === 1){
+    // only a final: no side branches to mirror
+    bracketHtml = `<div class="bracket-center standalone">
+      <div class="round-title final-title">${roundNames[0]}</div>
+      <div class="trophy-graphic">🏆</div>
+      ${renderMatchBox(rounds[0][0], 0, 0, true)}
+      ${renderChampionTag(champion, state.bracket.blank)}
+    </div>`;
+  } else {
+    const leftCols = [];
+    const rightCols = [];
+    for(let r=0; r<L-1; r++){
+      const half = rounds[r].length / 2;
+      const leftMatches = rounds[r].slice(0, half);
+      const rightMatches = rounds[r].slice(half);
+      leftCols.push(renderRoundColumn(r, leftMatches, 0, roundNames[r]));
+      rightCols.push(renderRoundColumn(r, rightMatches, half, roundNames[r]));
+    }
+    const centerHtml = `<div class="bracket-center">
+      <div class="round-title final-title">${roundNames[L-1]}</div>
+      <div class="trophy-graphic">🏆</div>
+      ${renderMatchBox(rounds[L-1][0], L-1, 0, true)}
+      ${renderChampionTag(champion, state.bracket.blank)}
+    </div>`;
+    bracketHtml = leftCols.join('') + centerHtml + rightCols.slice().reverse().join('');
+  }
+
+  return `
+  <div class="panel">
+    <div class="grille-heading">
+      <div class="grille-eyebrow">${state.config.sport} · ${state.config.categorie} ${state.config.sexe}${state.config.poids?(' · '+state.config.poids):''}</div>
+      <h2 class="grille-title">Tableau Final</h2>
+    </div>
+    <div class="meta-line">
+      <span><b>${state.config.responsable||'—'}</b></span>
+      <span>Tirage du <b>${state.config.date||'—'}</b></span>
+      <span class="no-print">Cliquez sur une équipe pour la qualifier au tour suivant.</span>
+    </div>
+    <div class="bracket-scroll">
+      <div class="bracket mirror">${bracketHtml}</div>
+    </div>
+    <div class="row-actions">
+      <button class="ghost" id="back-tirage">← Retour au tirage</button>
+      <button class="ghost" id="print-bracket">🖨 Imprimer / Exporter PDF</button>
+      <button class="danger ghost" id="reset-bracket">Réinitialiser la grille</button>
+    </div>
+  </div>`;
+}
+
+function renderRoundColumn(ri, matches, offset, title){
+  const html = matches.map((m, localIdx)=>{
+    const mi = offset + localIdx;
+    return renderMatchBox(m, ri, mi, false);
+  }).join('');
+  return `<div class="round"><div class="round-title">${title}</div>${html}</div>`;
+}
+
+function renderMatchBox(m, ri, mi, isFinal){
+  return `<div class="match ${isFinal?'final':''}" data-round="${ri}" data-match="${mi}">
+    <div class="match-meta">
+      <input class="match-date date-text" type="text" placeholder="jj/mm/aaaa" maxlength="10" inputmode="numeric" value="${m.date||''}" data-round="${ri}" data-match="${mi}" data-field="date">
+      <input class="match-heure time-text" type="text" placeholder="hh:mm" maxlength="5" inputmode="numeric" value="${m.heure||''}" data-round="${ri}" data-match="${mi}" data-field="heure">
+    </div>
+    <input class="match-lieu" type="text" placeholder="Lieu de la rencontre" value="${m.lieu||''}" data-round="${ri}" data-match="${mi}" data-field="lieu">
+    ${renderSlot(m.a, ri, mi, 0)}
+    ${renderSlot(m.b, ri, mi, 1)}
+  </div>`;
+}
+
+function renderChampionTag(champion, blank){
+  if(blank){
+    return `<div class="champion-banner">
+      <input type="text" class="champion-name-input" placeholder="Nom du vainqueur" value="${champion?.name||''}">
+      <div class="tag">Vainqueur</div>
+    </div>`;
+  }
+  return `<div class="champion-banner">
+    <div class="name">${champion ? champion.name : '?'}</div>
+    <div class="tag">${champion ? 'Champion' : 'En attente'}</div>
+  </div>`;
+}
+
+function renderSlot(team, ri, mi, slotIdx){
+  if(!team) return `<div class="m-team empty-slot">À déterminer</div>`;
+  if(team.editable){
+    return `<div class="m-team editable-team">
+      <div class="avatar" style="width:22px;height:22px;font-size:9px;">—</div>
+      <input type="text" class="team-name-input" placeholder="Équipe" value="${team.name||''}" data-round="${ri}" data-match="${mi}" data-slot="${slotIdx}">
+    </div>`;
+  }
+  const isWinner = team.__winner;
+  const seedBadge = (ri===0 && team.seed) ? `<span class="seed">${team.seed}</span>` : '';
+  return `<div class="m-team ${isWinner?'winner':''}" data-advance="${ri}-${mi}-${slotIdx}">
+    ${seedBadge}
+    <div class="avatar" style="width:22px;height:22px;font-size:9px;">${team.logo?`<img src="${team.logo}">`:team.name.slice(0,2).toUpperCase()}</div>
+    ${team.name}
+  </div>`;
+}
+
+function computeRoundNames(count){
+  const names = ['Finale','Demi-finales','Quarts de finale','Huitièmes de finale','Seizièmes de finale'];
+  const out = [];
+  for(let i=0;i<count;i++){
+    out.unshift(names[i] || `Tour ${count-i}`);
+  }
+  return out;
+}
+
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+function buildBlankBracket(){
+  const blankMatch = ()=> ({ a: {id:uid(), name:'', editable:true}, b: {id:uid(), name:'', editable:true}, date:'', heure:'', lieu:'' });
+  const rounds = [
+    [blankMatch(), blankMatch(), blankMatch(), blankMatch()], // quarts
+    [blankMatch(), blankMatch()],                              // demis
+    [blankMatch()]                                             // finale
+  ];
+  return { rounds, champion: {id:uid(), name:'', editable:true}, blank: true };
+}
+
+function buildBracket(qualifiedTeams){
+  let teams = shuffle(qualifiedTeams);
+  // pad to next power of two with byes (null opponent = auto-advance)
+  let size = 1;
+  while(size < teams.length) size *= 2;
+  while(teams.length < size) teams.push(null);
+
+  const firstRound = [];
+  for(let i=0;i<teams.length;i+=2){
+    firstRound.push({ a: teams[i], b: teams[i+1], date:'', heure:'', lieu:'' });
+  }
+  // auto-resolve byes immediately
+  firstRound.forEach(m=>{
+    if(m.a && !m.b){ m.a.__winner = true; }
+    if(m.b && !m.a){ m.b.__winner = true; }
+  });
+
+  const rounds = [firstRound];
+  let prevCount = firstRound.length;
+  while(prevCount > 1){
+    const nextMatches = [];
+    for(let i=0;i<prevCount/2;i++) nextMatches.push({a:null,b:null,date:'',heure:'',lieu:''});
+    rounds.push(nextMatches);
+    prevCount = prevCount/2;
+  }
+  propagateByes(rounds);
+  return { rounds, champion: null };
+}
+
+function propagateByes(rounds){
+  for(let ri=0; ri<rounds.length-1; ri++){
+    rounds[ri].forEach((m, mi)=>{
+      const winner = m.a && m.a.__winner ? m.a : (m.b && m.b.__winner ? m.b : null);
+      if(winner){
+        const nextRound = rounds[ri+1];
+        const nextMatch = nextRound[Math.floor(mi/2)];
+        if(mi%2===0) nextMatch.a = winner; else nextMatch.b = winner;
+      }
+    });
+  }
+}
+
+function attachHandlers(){
+  document.querySelectorAll('[data-goto]').forEach(b=>{
+    b.onclick = ()=>{
+      const target = parseInt(b.dataset.goto);
+      if(target===3 && !state.bracket && !state.poules) return;
+      state.step = target; render();
+    };
+  });
+
+  if(state.step===0){
+    document.getElementById('go-teams').onclick = ()=>{
+      state.config.responsable = document.getElementById('cfg-responsable').value;
+      state.config.date = document.getElementById('cfg-date').value;
+      state.config.sport = document.getElementById('cfg-sport').value;
+      state.config.categorie = document.getElementById('cfg-categorie').value;
+      state.config.sexe = document.getElementById('cfg-sexe').value;
+      state.config.poids = document.getElementById('cfg-poids').value;
+      state.step = 1; render();
+    };
+  }
+
+  if(state.step===1){
+    const logoPicker = document.getElementById('new-logo-picker');
+    const logoFileInput = document.getElementById('new-team-logo');
+    const logoPreview = document.getElementById('new-logo-preview');
+    logoPicker.onclick = ()=> logoFileInput.click();
+    logoFileInput.onchange = ()=>{
+      const f = logoFileInput.files && logoFileInput.files[0];
+      if(!f) return;
+      const reader = new FileReader();
+      reader.onload = e=>{ logoPreview.innerHTML = `<img src="${e.target.result}">`; };
+      reader.readAsDataURL(f);
+    };
+    document.getElementById('add-team').onclick = ()=>{
+      const nameInput = document.getElementById('new-team-name');
+      const fileInput = document.getElementById('new-team-logo');
+      const name = nameInput.value.trim();
+      if(!name) return;
+      const addTeam = (logo)=>{
+        state.teams.push({id: uid(), name, logo});
+        render();
+      };
+      if(fileInput.files && fileInput.files[0]){
+        const reader = new FileReader();
+        reader.onload = e=> addTeam(e.target.result);
+        reader.readAsDataURL(fileInput.files[0]);
+      } else {
+        addTeam(null);
+      }
+    };
+    document.getElementById('new-team-name').addEventListener('keydown', e=>{
+      if(e.key==='Enter') document.getElementById('add-team').click();
+    });
+    document.querySelectorAll('[data-remove]').forEach(b=>{
+      b.onclick = ()=>{
+        state.teams = state.teams.filter(t=>t.id!==b.dataset.remove);
+        render();
+      };
+    });
+    document.querySelectorAll('[data-edit-logo]').forEach(btn=>{
+      btn.onclick = ()=>{
+        const id = btn.dataset.editLogo;
+        const inp = document.createElement('input');
+        inp.type = 'file'; inp.accept = 'image/*';
+        inp.onchange = ()=>{
+          const f = inp.files && inp.files[0];
+          if(!f) return;
+          const reader = new FileReader();
+          reader.onload = e=>{
+            const team = state.teams.find(t=>t.id===id);
+            if(team){ team.logo = e.target.result; render(); }
+          };
+          reader.readAsDataURL(f);
+        };
+        inp.click();
+      };
+    });
+    document.getElementById('back-setup').onclick = ()=>{ state.step=0; render(); };
+    document.getElementById('go-tirage').onclick = ()=>{ state.step=2; render(); };
+  }
+
+  if(state.step===2){
+    document.getElementById('poule-minus').onclick = ()=>{
+      state.nbPoules = Math.max(2, state.nbPoules-1);
+      document.getElementById('poule-val').textContent = state.nbPoules;
+    };
+    document.getElementById('poule-plus').onclick = ()=>{
+      state.nbPoules = Math.min(8, state.nbPoules+1);
+      document.getElementById('poule-val').textContent = state.nbPoules;
+    };
+    document.getElementById('launch-tirage').onclick = ()=> runTirage();
+    document.getElementById('back-teams').onclick = ()=>{ state.step=1; render(); };
+    document.getElementById('go-bracket-blank').onclick = ()=>{
+      state.bracket = buildBlankBracket();
+      state.step = 3; render();
+    };
+    const goBracketBtn = document.getElementById('go-bracket');
+    if(goBracketBtn) goBracketBtn.onclick = ()=>{
+      const qualified = [];
+      Object.keys(state.poules).forEach(letter=>{
+        const standings = computeStandings(letter);
+        standings.slice(0,2).forEach((r,idx)=>{
+          r.team.seed = `${letter}${idx+1}`;
+          qualified.push(r.team);
+        });
+      });
+      if(qualified.length < 2){ alert('Il faut au moins 2 équipes qualifiées pour générer la grille.'); return; }
+      state.bracket = buildBracket(qualified);
+      state.step = 3; render();
+    };
+    if(state.poules) renderPoulesResult();
+  }
+
+  if(state.step===3){
+    const back = document.getElementById('back-tirage');
+    if(back) back.onclick = ()=>{ state.step=2; render(); };
+    const printBtn = document.getElementById('print-bracket');
+    if(printBtn) printBtn.onclick = ()=> window.print();
+    const resetBtn = document.getElementById('reset-bracket');
+    if(resetBtn) resetBtn.onclick = ()=>{ state.bracket=null; render(); };
+
+    document.querySelectorAll('[data-advance]').forEach(el=>{
+      el.onclick = ()=>{
+        const [ri, mi, slotIdx] = el.dataset.advance.split('-').map(Number);
+        advanceTeam(ri, mi, slotIdx);
+      };
+    });
+    document.querySelectorAll('.match-date, .match-heure, .match-lieu').forEach(el=>{
+      el.onchange = ()=>{
+        const ri = parseInt(el.dataset.round), mi = parseInt(el.dataset.match), field = el.dataset.field;
+        state.bracket.rounds[ri][mi][field] = el.value;
+      };
+    });
+    document.querySelectorAll('.team-name-input').forEach(inp=>{
+      inp.oninput = ()=>{
+        const ri = parseInt(inp.dataset.round), mi = parseInt(inp.dataset.match), slot = parseInt(inp.dataset.slot);
+        const match = state.bracket.rounds[ri][mi];
+        (slot===0 ? match.a : match.b).name = inp.value;
+      };
+    });
+    const champInput = document.querySelector('.champion-name-input');
+    if(champInput){
+      champInput.oninput = ()=>{ state.bracket.champion.name = champInput.value; };
+    }
+  }
+}
+
+function runTirage(){
+  const teams = shuffle(state.teams);
+  const letters = 'ABCDEFGH'.split('').slice(0, state.nbPoules);
+  const poules = {}; letters.forEach(l=> poules[l] = []);
+  teams.forEach((t,i)=> poules[letters[i % letters.length]].push(t));
+  state.poules = poules;
+
+  const pouleMatches = {};
+  letters.forEach(l=>{
+    pouleMatches[l] = buildCalendar(poules[l]);
+  });
+  state.pouleMatches = pouleMatches;
+
+  // for the 2-poule format, prepare the crossed knockout phase (A1-B2 / B1-A2 -> finale) on the same page
+  state.finalPhase = (state.nbPoules === 2)
+    ? { demi1WinnerId:null, demi2WinnerId:null, finalWinnerId:null,
+        demi1Date:'', demi2Date:'', finalDate:'',
+        demi1Heure:'', demi2Heure:'', finalHeure:'',
+        demi1Lieu:'', demi2Lieu:'', finalLieu:'' }
+    : null;
+
+  const urn = document.getElementById('urn');
+  urn.innerHTML = '';
+  letters.forEach((l,i)=>{
+    setTimeout(()=>{
+      const b = document.createElement('div');
+      b.className = 'ball-fly';
+      b.textContent = l;
+      b.style.left = (50 + (i - (letters.length-1)/2)*46) + 'px';
+      urn.appendChild(b);
+    }, i*120);
+  });
+  setTimeout(renderPoulesResult, letters.length*120 + 250);
+}
+
+// Circle-method round robin: generates journées (matchdays) and alternates home/away
+// per round so each team accumulates a balanced number of home and away matches
+// (e.g. 2 domicile / 2 extérieur for a 5-team poule). Odd counts get one bye per journée.
+function buildCalendar(teamsArr){
+  let arr = teamsArr.slice();
+  const hasBye = arr.length % 2 !== 0;
+  if(hasBye) arr.push(null);
+  const n = arr.length;
+  if(n < 2) return [];
+  const matches = [];
+  for(let r=0; r<n-1; r++){
+    for(let i=0;i<n/2;i++){
+      const t1 = arr[i], t2 = arr[n-1-i];
+      if(!t1 || !t2) continue;
+      const flip = (r + i) % 2 === 1;
+      const home = flip ? t2 : t1;
+      const away = flip ? t1 : t2;
+      matches.push({ aId: home.id, bId: away.id, scoreA:'', scoreB:'', date:'', heure:'', lieu:'', journee: r+1 });
+    }
+    // rotate all but the first team
+    arr.splice(1, 0, arr.pop());
+  }
+  return matches;
+}
+
+function computeStandings(letter){
+  const teams = state.poules[letter];
+  const table = {};
+  teams.forEach(t=> table[t.id] = { team: t, mp:0, w:0, d:0, l:0, gf:0, ga:0, pts:0 });
+
+  (state.pouleMatches[letter]||[]).forEach(m=>{
+    if(m.scoreA==='' || m.scoreB==='' || m.scoreA===null || m.scoreB===null) return;
+    const sa = parseInt(m.scoreA), sb = parseInt(m.scoreB);
+    if(isNaN(sa) || isNaN(sb)) return;
+    const ra = table[m.aId], rb = table[m.bId];
+    ra.mp++; rb.mp++;
+    ra.gf += sa; ra.ga += sb;
+    rb.gf += sb; rb.ga += sa;
+    if(sa > sb){ ra.w++; ra.pts+=3; rb.l++; }
+    else if(sb > sa){ rb.w++; rb.pts+=3; ra.l++; }
+    else { ra.d++; rb.d++; ra.pts+=1; rb.pts+=1; }
+  });
+
+  return Object.values(table).sort((x,y)=>{
+    if(y.pts !== x.pts) return y.pts - x.pts;
+    const gdx = x.gf-x.ga, gdy = y.gf-y.ga;
+    if(gdy !== gdx) return gdy - gdx;
+    return y.gf - x.gf;
+  });
+}
+
+function renderPoulesResult(){
+  const container = document.getElementById('poules-result');
+  if(!container || !state.poules) return;
+  const cards = Object.keys(state.poules).map(letter=>{
+    const teamsById = {};
+    state.poules[letter].forEach(t=> teamsById[t.id]=t);
+
+    const totalMatches = (state.pouleMatches[letter]||[]).length;
+    const matchesHtml = (state.pouleMatches[letter]||[]).map((m,mi)=>{
+      const ta = teamsById[m.aId], tb = teamsById[m.bId];
+      return `<div class="p-match-wrap">
+        <div class="p-match">
+          <div class="p-match-row">
+            <span class="pm-name"><span class="ha-badge home">D</span>${ta.name}</span>
+            <input class="pm-score" type="number" min="0" data-letter="${letter}" data-mindex="${mi}" data-side="A" value="${m.scoreA}">
+            <span class="pm-vs">—</span>
+            <input class="pm-score" type="number" min="0" data-letter="${letter}" data-mindex="${mi}" data-side="B" value="${m.scoreB}">
+            <span class="pm-name" style="text-align:right;">${tb.name}<span class="ha-badge away">E</span></span>
+          </div>
+          <div class="p-match-extra">
+            <input class="pm-date date-text" type="text" placeholder="jj/mm/aaaa" maxlength="10" inputmode="numeric" data-letter="${letter}" data-mindex="${mi}" data-field="date" value="${m.date||''}">
+            <input class="pm-heure time-text" type="text" placeholder="hh:mm" maxlength="5" inputmode="numeric" data-letter="${letter}" data-mindex="${mi}" data-field="heure" value="${m.heure||''}">
+          </div>
+          <input class="pm-lieu" type="text" placeholder="Lieu de la rencontre" data-letter="${letter}" data-mindex="${mi}" data-field="lieu" value="${m.lieu||''}">
+        </div>
+        <div class="reorder-controls">
+          <button class="reorder-btn" title="Avancer la rencontre" data-dir="up" data-letter="${letter}" data-mindex="${mi}" ${mi===0?'disabled':''}>▲</button>
+          <button class="reorder-btn" title="Reporter la rencontre (match à rejouer)" data-dir="down" data-letter="${letter}" data-mindex="${mi}" ${mi===totalMatches-1?'disabled':''}>▼</button>
+        </div>
+      </div>`;
+    }).join('') || '<div class="empty" style="padding:8px 0;">Poule à une seule équipe.</div>';
+
+    // Calendar grouped by journée, home (domicile) vs away (extérieur), balanced by the circle-method draw
+    const byJournee = {};
+    (state.pouleMatches[letter]||[]).forEach((m, mi)=>{
+      const j = m.journee || 1;
+      if(!byJournee[j]) byJournee[j] = [];
+      byJournee[j].push({ m, mi });
+    });
+    const calendarHtml = Object.keys(byJournee).sort((a,b)=>a-b).map(j=>{
+      const rows = byJournee[j].map(({m, mi})=>{
+        const ta = teamsById[m.aId], tb = teamsById[m.bId];
+        return `<div class="cal-row">
+          <span class="cal-team">${ta.name}</span>
+          <span class="cal-vs">vs</span>
+          <span class="cal-team right">${tb.name}</span>
+          <input class="pm-date date-text cal-date" type="text" placeholder="jj/mm/aaaa" maxlength="10" inputmode="numeric" data-letter="${letter}" data-mindex="${mi}" data-field="date" value="${m.date||''}">
+          <input class="pm-heure time-text cal-heure" type="text" placeholder="hh:mm" maxlength="5" inputmode="numeric" data-letter="${letter}" data-mindex="${mi}" data-field="heure" value="${m.heure||''}">
+          <input class="pm-lieu cal-lieu" type="text" placeholder="Lieu" data-letter="${letter}" data-mindex="${mi}" data-field="lieu" value="${m.lieu||''}">
+        </div>`;
+      }).join('');
+      return `<div class="cal-journee"><div class="cal-journee-title">Journée ${j}</div>${rows}</div>`;
+    }).join('') || '<div class="empty" style="padding:8px 0;">Aucune rencontre.</div>';
+
+    const standings = computeStandings(letter);
+    const rowsHtml = standings.map((r,idx)=>`
+      <tr class="${idx<2?'qualified':''}">
+        <td class="rk">${idx+1}</td>
+        <td>${r.team.name}</td>
+        <td>${r.mp}</td>
+        <td>${r.w}</td>
+        <td>${r.d}</td>
+        <td>${r.l}</td>
+        <td>${r.gf}-${r.ga}</td>
+        <td>${r.pts}</td>
+      </tr>`).join('');
+
+    return `<div class="poule-card">
+      <h3><span class="letter">${letter}</span>Poule ${letter}</h3>
+      <div class="section-label">Rencontres</div>
+      <div class="poule-matches">${matchesHtml}</div>
+      <div class="section-label">Calendrier par journée</div>
+      <div class="calendar">${calendarHtml}</div>
+      <div class="section-label">Classement — 1er &amp; 2ème qualifiés</div>
+      <table class="standings">
+        <thead><tr><th></th><th>Équipe</th><th>J</th><th>G</th><th>N</th><th>P</th><th>Buts</th><th>Pts</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+  }).join('');
+  const finalPhaseHtml = state.finalPhase ? renderFinalPhaseInline() : '';
+  container.innerHTML = `<div class="poules-grid">${cards}</div>${finalPhaseHtml}`;
+
+  container.querySelectorAll('.pm-score').forEach(input=>{
+    input.onchange = ()=>{
+      const letter = input.dataset.letter, mi = parseInt(input.dataset.mindex), side = input.dataset.side;
+      const val = input.value === '' ? '' : parseInt(input.value);
+      if(side==='A') state.pouleMatches[letter][mi].scoreA = val;
+      else state.pouleMatches[letter][mi].scoreB = val;
+      renderPoulesResult();
+    };
+  });
+  container.querySelectorAll('.pm-date, .pm-heure, .pm-lieu').forEach(input=>{
+    input.onchange = ()=>{
+      const letter = input.dataset.letter, mi = parseInt(input.dataset.mindex), field = input.dataset.field;
+      state.pouleMatches[letter][mi][field] = input.value;
+      renderPoulesResult();
+    };
+  });
+  container.querySelectorAll('.reorder-btn').forEach(btn=>{
+    btn.onclick = ()=>{
+      const letter = btn.dataset.letter, mi = parseInt(btn.dataset.mindex), dir = btn.dataset.dir;
+      const arr = state.pouleMatches[letter];
+      const swapWith = dir==='up' ? mi-1 : mi+1;
+      if(swapWith < 0 || swapWith >= arr.length) return;
+      [arr[mi], arr[swapWith]] = [arr[swapWith], arr[mi]];
+      renderPoulesResult();
+    };
+  });
+
+  if(state.finalPhase){
+    container.querySelectorAll('.fp-team[data-fp]').forEach(el=>{
+      el.onclick = ()=>{
+        const stage = el.dataset.fp, teamId = el.dataset.team;
+        if(stage==='demi1') state.finalPhase.demi1WinnerId = teamId;
+        else if(stage==='demi2') state.finalPhase.demi2WinnerId = teamId;
+        else if(stage==='final') state.finalPhase.finalWinnerId = teamId;
+        renderPoulesResult();
+      };
+    });
+    container.querySelectorAll('.fp-date, .fp-heure, .fp-lieu').forEach(input=>{
+      input.onchange = ()=>{
+        const stage = input.dataset.fp, field = input.dataset.field;
+        const key = stage + field.charAt(0).toUpperCase() + field.slice(1);
+        state.finalPhase[key] = input.value;
+      };
+    });
+    const printFp = container.querySelector('#print-finalphase');
+    if(printFp) printFp.onclick = ()=> window.print();
+  }
+}
+
+function renderFinalPhaseInline(){
+  const stA = computeStandings('A'), stB = computeStandings('B');
+  if(stA.length < 2 || stB.length < 2){
+    return `<div class="panel" style="margin-top:20px;">
+      <h2 style="font-size:18px;">Phase finale — demi-finales croisées</h2>
+      <div class="empty">Il faut au moins 2 équipes classées dans chaque poule (A et B) pour générer les demi-finales croisées.</div>
+    </div>`;
+  }
+  const A1 = stA[0].team, A2 = stA[1].team, B1 = stB[0].team, B2 = stB[1].team;
+  const fp = state.finalPhase;
+
+  const fpSlot = (team, stage, winnerId)=>{
+    const isWinner = winnerId === team.id;
+    return `<div class="m-team fp-team ${isWinner?'winner':''}" data-fp="${stage}" data-team="${team.id}">
+      <div class="avatar" style="width:22px;height:22px;font-size:9px;">${team.logo?`<img src="${team.logo}">`:team.name.slice(0,2).toUpperCase()}</div>
+      ${team.name}
+    </div>`;
+  };
+  const fpMeta = (stage, fp)=> `
+    <div class="match-meta">
+      <input class="match-date fp-date date-text" type="text" placeholder="jj/mm/aaaa" maxlength="10" inputmode="numeric" data-fp="${stage}" data-field="date" value="${fp[stage+'Date']||''}">
+      <input class="match-heure fp-heure time-text" type="text" placeholder="hh:mm" maxlength="5" inputmode="numeric" data-fp="${stage}" data-field="heure" value="${fp[stage+'Heure']||''}">
+    </div>
+    <input class="match-lieu fp-lieu" type="text" placeholder="Lieu de la rencontre" data-fp="${stage}" data-field="lieu" value="${fp[stage+'Lieu']||''}">`;
+
+  const demi1Winner = [A1,B2].find(t=>t.id===fp.demi1WinnerId) || null;
+  const demi2Winner = [B1,A2].find(t=>t.id===fp.demi2WinnerId) || null;
+  const champion = (demi1Winner && demi2Winner) ? ([demi1Winner,demi2Winner].find(t=>t.id===fp.finalWinnerId) || null) : null;
+
+  const finalSlotHtml = (side)=>{
+    const cand = side===0 ? demi1Winner : demi2Winner;
+    if(!cand) return `<div class="m-team empty-slot">À déterminer</div>`;
+    return fpSlot(cand, 'final', fp.finalWinnerId);
+  };
+
+  return `
+  <div class="panel" style="margin-top:20px;">
+    <div class="grille-heading">
+      <div class="grille-eyebrow">Poule A + Poule B</div>
+      <h2 class="grille-title">Demi-finales &amp; Finale</h2>
+    </div>
+    <div class="meta-line no-print">Cliquez sur une équipe pour la qualifier au tour suivant.</div>
+    <div class="bracket-scroll">
+      <div class="bracket mirror">
+        <div class="round">
+          <div class="round-title">Demi-finale</div>
+          <div class="match">
+            ${fpMeta('demi1', fp)}
+            ${fpSlot(A1, 'demi1', fp.demi1WinnerId)}
+            ${fpSlot(B2, 'demi1', fp.demi1WinnerId)}
+          </div>
+        </div>
+        <div class="bracket-center">
+          <div class="round-title final-title">Finale</div>
+          <div class="trophy-graphic">🏆</div>
+          <div class="match final">
+            ${fpMeta('final', fp)}
+            ${finalSlotHtml(0)}
+            ${finalSlotHtml(1)}
+          </div>
+          <div class="champion-banner">
+            <div class="name">${champion ? champion.name : '?'}</div>
+            <div class="tag">${champion ? 'Champion' : 'En attente'}</div>
+          </div>
+        </div>
+        <div class="round">
+          <div class="round-title">Demi-finale</div>
+          <div class="match">
+            ${fpMeta('demi2', fp)}
+            ${fpSlot(B1, 'demi2', fp.demi2WinnerId)}
+            ${fpSlot(A2, 'demi2', fp.demi2WinnerId)}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row-actions no-print">
+      <button class="ghost" id="print-finalphase">🖨 Imprimer / Exporter PDF</button>
+    </div>
+  </div>`;
+}
+
+function advanceTeam(ri, mi, slotIdx){
+  const rounds = state.bracket.rounds;
+  const match = rounds[ri][mi];
+  const chosen = slotIdx===0 ? match.a : match.b;
+  if(!chosen) return;
+  // clear previous winner flag in this match
+  if(match.a) match.a.__winner = false;
+  if(match.b) match.b.__winner = false;
+  chosen.__winner = true;
+
+  if(ri === rounds.length - 1){
+    state.bracket.champion = chosen;
+  } else {
+    const nextRound = rounds[ri+1];
+    const nextMatch = nextRound[Math.floor(mi/2)];
+    if(mi%2===0) nextMatch.a = chosen; else nextMatch.b = chosen;
+    // if that changes an already-decided later match, we keep it simple: clear downstream winner state
+    clearDownstream(ri+1, Math.floor(mi/2));
+  }
+  render();
+}
+
+function clearDownstream(ri, mi){
+  if(ri >= state.bracket.rounds.length) { state.bracket.champion = null; return; }
+  const match = state.bracket.rounds[ri][mi];
+  if(match.a) match.a.__winner = false;
+  if(match.b) match.b.__winner = false;
+  if(ri === state.bracket.rounds.length -1) state.bracket.champion = null;
+  if(ri+1 < state.bracket.rounds.length) clearDownstream(ri+1, Math.floor(mi/2));
+}
+
+document.addEventListener('input', function(e){
+  if(e.target.classList && e.target.classList.contains('date-text')){
+    let digits = e.target.value.replace(/\D/g,'').slice(0,8);
+    let out = digits;
+    if(digits.length > 4) out = digits.slice(0,2) + '/' + digits.slice(2,4) + '/' + digits.slice(4);
+    else if(digits.length > 2) out = digits.slice(0,2) + '/' + digits.slice(2);
+    e.target.value = out;
+  }
+  if(e.target.classList && e.target.classList.contains('time-text')){
+    let digits = e.target.value.replace(/\D/g,'').slice(0,4);
+    let out = digits;
+    if(digits.length > 2) out = digits.slice(0,2) + ':' + digits.slice(2);
+    e.target.value = out;
+  }
+});
+
+// ---- Affiche de la rencontre du jour ----
+function openPosterModal(){
+  if(state.teams.length < 2){
+    alert("Ajoutez au moins deux équipes (étape Liste) avant de créer une affiche.");
+    return;
+  }
+  const optionsHtml = state.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  const selA = document.getElementById('poster-teamA');
+  const selB = document.getElementById('poster-teamB');
+  selA.innerHTML = optionsHtml;
+  selB.innerHTML = optionsHtml;
+  if(state.teams[1]) selB.value = state.teams[1].id;
+  document.getElementById('poster-structure').value = state.config.responsable || '';
+  document.getElementById('poster-date').value = state.config.date || '';
+  document.getElementById('poster-download').style.display = 'none';
+  document.getElementById('poster-overlay').classList.add('open');
+}
+function closePosterModal(){
+  document.getElementById('poster-overlay').classList.remove('open');
+}
+
+function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight){
+  const words = String(text).split(' ');
+  let line = '', curY = y;
+  for(let n=0;n<words.length;n++){
+    const testLine = line + words[n] + ' ';
+    if(ctx.measureText(testLine).width > maxWidth && n>0){
+      ctx.fillText(line.trim(), x, curY);
+      line = words[n] + ' ';
+      curY += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  ctx.fillText(line.trim(), x, curY);
+  return curY;
+}
+
+function loadImageAsync(src){
+  return new Promise(resolve=>{
+    if(!src){ resolve(null); return; }
+    const img = new Image();
+    img.onload = ()=> resolve(img);
+    img.onerror = ()=> resolve(null);
+    img.src = src;
+  });
+}
+
+async function generatePoster(){
+  const teamA = state.teams.find(t=>t.id===document.getElementById('poster-teamA').value);
+  const teamB = state.teams.find(t=>t.id===document.getElementById('poster-teamB').value);
+  if(!teamA || !teamB || teamA.id===teamB.id){
+    alert("Choisissez deux équipes différentes.");
+    return;
+  }
+  const heure = document.getElementById('poster-heure').value;
+  const lieu = document.getElementById('poster-lieu').value;
+  const date = document.getElementById('poster-date').value;
+  const structure = document.getElementById('poster-structure').value;
+
+  const canvas = document.getElementById('poster-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
+
+  // background
+  const grad = ctx.createLinearGradient(0,0,W*0.3,H);
+  grad.addColorStop(0,'#245c3f');
+  grad.addColorStop(0.5,'#163527');
+  grad.addColorStop(1,'#0f2419');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,W,H);
+
+  // diagonal stripe texture
+  ctx.save();
+  ctx.globalAlpha = 0.05;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 10;
+  for(let x=-H; x<W; x+=34){
+    ctx.beginPath();
+    ctx.moveTo(x,0);
+    ctx.lineTo(x+H,H);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // curved swoosh bands
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.beginPath();
+  ctx.moveTo(0, H*0.155);
+  ctx.quadraticCurveTo(W*0.5, H*0.075, W, H*0.155);
+  ctx.lineTo(W, H*0.185);
+  ctx.quadraticCurveTo(W*0.5, H*0.105, 0, H*0.185);
+  ctx.closePath();
+  ctx.fill();
+
+  // faint ball graphic bottom-left
+  ctx.save();
+  ctx.globalAlpha = 0.12;
+  ctx.font = '280px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('⚽', -60, H-40);
+  ctx.restore();
+
+  // header
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#E8A93A';
+  ctx.font = '700 20px "JetBrains Mono", monospace';
+  ctx.fillText((structure || 'STRUCTURE ORGANISATRICE').toUpperCase(), W/2, 90);
+
+  ctx.fillStyle = '#F6F4EC';
+  ctx.font = '400 56px Anton, sans-serif';
+  ctx.fillText('RENCONTRE DU JOUR', W/2, 152);
+
+  ctx.strokeStyle = '#E8A93A';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(W/2-100, 172); ctx.lineTo(W/2+100,172); ctx.stroke();
+
+  const eyebrow = `${state.config.sport} · ${state.config.categorie} ${state.config.sexe}`;
+  ctx.fillStyle = 'rgba(246,244,236,0.6)';
+  ctx.font = '400 18px "JetBrains Mono", monospace';
+  ctx.fillText(eyebrow, W/2, 205);
+
+  // team logos / initials
+  const [imgA, imgB] = await Promise.all([loadImageAsync(teamA.logo), loadImageAsync(teamB.logo)]);
+  const circleY = H*0.40;
+  const circleR = 95;
+  const leftX = W*0.27, rightX = W*0.73;
+
+  function drawTeamCircle(x, img, team){
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, circleY, circleR, 0, Math.PI*2);
+    ctx.closePath();
+    ctx.fillStyle = '#1F4A36';
+    ctx.fill();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = '#E8A93A';
+    ctx.stroke();
+    ctx.clip();
+    if(img){
+      ctx.drawImage(img, x-circleR, circleY-circleR, circleR*2, circleR*2);
+    } else {
+      ctx.fillStyle = '#F6F4EC';
+      ctx.font = '700 50px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(team.name.slice(0,2).toUpperCase(), x, circleY+6);
+      ctx.textBaseline = 'alphabetic';
+    }
+    ctx.restore();
+  }
+  drawTeamCircle(leftX, imgA, teamA);
+  drawTeamCircle(rightX, imgB, teamB);
+
+  ctx.fillStyle = '#E8A93A';
+  ctx.font = '400 50px Anton, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('VS', W/2, circleY+18);
+
+  ctx.fillStyle = '#F6F4EC';
+  ctx.font = '700 28px Oswald, sans-serif';
+  wrapCanvasText(ctx, teamA.name.toUpperCase(), leftX, circleY+circleR+48, 230, 32);
+  wrapCanvasText(ctx, teamB.name.toUpperCase(), rightX, circleY+circleR+48, 230, 32);
+
+  // bottom info bar
+  const barY = H*0.80;
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(0, barY, W, H-barY);
+  ctx.strokeStyle = '#E8A93A';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0,barY); ctx.lineTo(W,barY); ctx.stroke();
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#E8A93A';
+  ctx.font = '700 16px "JetBrains Mono", monospace';
+  ctx.fillText('DATE & HEURE', W*0.27, barY+48);
+  ctx.fillText('LIEU', W*0.73, barY+48);
+
+  ctx.fillStyle = '#F6F4EC';
+  ctx.font = '400 28px Oswald, sans-serif';
+  wrapCanvasText(ctx, `${date || '—'}  •  ${heure || '—'}`, W*0.27, barY+86, 260, 32);
+  wrapCanvasText(ctx, lieu || '—', W*0.73, barY+86, 260, 32);
+
+  const downloadBtn = document.getElementById('poster-download');
+  downloadBtn.style.display = 'inline-block';
+  downloadBtn.onclick = ()=>{
+    const link = document.createElement('a');
+    const safe = (s)=> String(s).replace(/[^a-z0-9]+/gi,'_');
+    link.download = `affiche_${safe(teamA.name)}_vs_${safe(teamB.name)}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  };
+}
+
+document.getElementById('open-poster').onclick = openPosterModal;
+document.getElementById('poster-close').onclick = closePosterModal;
+document.getElementById('poster-generate').onclick = ()=> generatePoster();
+document.getElementById('poster-overlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'poster-overlay') closePosterModal();
+});
+
+render();
+</script>
+</body>
+</html>
