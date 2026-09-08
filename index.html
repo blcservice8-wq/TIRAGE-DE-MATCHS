@@ -13,10 +13,23 @@
     --chalk: #EAF6FF;
     --whistle: #57C2F0;
     --card-red: #C1443C;
+    --card-red-text: #F08579; /* variante éclaircie : ≥4.5:1 de contraste sur --pitch et --ink (WCAG AA texte), contrairement à --card-red (~2.3:1) qui reste réservé aux fonds/bordures */
     --ink: #082238;
     --line: rgba(234,246,255,0.16);
+    --focus-ring: 0 0 0 3px rgba(87,194,240,0.55);
   }
   *{box-sizing:border-box;}
+  /* Repère de focus clavier visible et cohérent sur tous les contrôles
+     interactifs. Les règles existantes qui font `outline:none` sur certains
+     champs restent (elles gèrent leur propre retour visuel via border-color),
+     mais ce halo garantit un indicateur net partout, y compris sur les
+     boutons qui n'avaient auparavant aucun style de focus dédié. */
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible,
+  textarea:focus-visible, [tabindex]:focus-visible{
+    outline: none;
+    box-shadow: var(--focus-ring);
+    border-radius: 4px;
+  }
   body{
     margin:0;
     background:
@@ -42,7 +55,34 @@
   .brand{display:flex;align-items:center;gap:14px;}
   .z13c-logo{width:52px;height:52px;flex-shrink:0;}
   .z13c-logo svg, .z13c-logo img{width:100%;height:100%;}
-  .header-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .header-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .save-indicator{
+    font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.5px;
+    color:rgba(234,246,255,0.4);padding:0 4px;transition:color .2s;white-space:nowrap;
+  }
+  .save-indicator.ok{color:var(--whistle);}
+  .save-indicator.err{color:var(--card-red-text);}
+  .poster-archive{margin-top:24px;border-top:1px solid var(--line);padding-top:16px;}
+  .poster-archive h3{
+    font-family:'Anton',sans-serif;font-weight:400;text-transform:uppercase;font-size:15px;
+    margin:0 0 12px;letter-spacing:0.5px;color:var(--whistle);
+  }
+  .poster-archive-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;}
+  .poster-archive-empty{color:rgba(246,244,236,0.45);font-size:13px;grid-column:1/-1;}
+  .poster-card{
+    background:rgba(246,244,236,0.05);border:1px solid var(--line);border-radius:8px;
+    padding:8px;display:flex;flex-direction:column;gap:6px;
+  }
+  .poster-card img{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:6px;background:var(--pitch-2);}
+  .poster-card .poster-card-name{
+    font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .poster-card .poster-card-actions{display:flex;flex-wrap:wrap;gap:4px;}
+  .poster-card .poster-card-actions button{
+    flex:1;min-width:38px;background:rgba(246,244,236,0.08);border:1px solid var(--line);
+    border-radius:5px;color:var(--chalk);font-size:11px;padding:4px 2px;cursor:pointer;
+  }
+  .poster-card .poster-card-actions button.danger{color:var(--card-red-text);}
 
   /* Écran de connexion */
   .auth-screen{
@@ -144,7 +184,7 @@
     background:transparent;color:var(--chalk);border:1px solid var(--line);
     padding:12px 18px;border-radius:8px;cursor:pointer;letter-spacing:0.5px;text-transform:uppercase;
   }
-  button.danger{color:var(--card-red);border-color:rgba(193,68,60,0.4);}
+  button.danger{color:var(--card-red-text);border-color:rgba(193,68,60,0.4);}
 
   .team-add{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;align-items:flex-end;}
   .team-add .field{flex:1;min-width:180px;margin-bottom:0;}
@@ -184,7 +224,7 @@
   }
   .team-row .name{flex:1;font-size:15px;}
   .team-row button{
-    background:none;border:none;color:var(--card-red);cursor:pointer;font-size:16px;
+    background:none;border:none;color:var(--card-red-text);cursor:pointer;font-size:16px;
     font-family:'JetBrains Mono',monospace;
   }
   .empty{color:rgba(246,244,236,0.45);font-size:13px;padding:20px 0;text-align:center;}
@@ -224,18 +264,6 @@
     width:24px;height:24px;border-radius:50%;background:var(--whistle);color:var(--ink);
     display:flex;align-items:center;justify-content:center;font-size:12px;
   }
-  .poule-team{
-    display:flex;align-items:center;gap:10px;padding:7px 0;font-size:14px;
-    border-bottom:1px dashed var(--line);
-  }
-  .poule-team:last-child{border-bottom:none;}
-  .qualify{
-    margin-left:auto;display:flex;align-items:center;gap:6px;cursor:pointer;
-    font-size:10px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;
-    color:rgba(246,244,236,0.5);
-  }
-  .qualify input{width:auto;accent-color:var(--whistle);}
-  .qualify.checked{color:var(--whistle);}
 
   .poule-matches{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
   .p-match-wrap{display:flex;align-items:stretch;gap:6px;}
@@ -459,6 +487,11 @@
     </div>
     <div class="header-actions">
       <button class="ghost" id="open-poster">🖼 Affiche MATCH du jour</button>
+      <span id="save-indicator" class="save-indicator" title="État de la sauvegarde locale"></span>
+      <button class="ghost" id="export-data">⬇ Exporter</button>
+      <button class="ghost" id="import-data-btn">⬆ Importer</button>
+      <input type="file" id="import-data-file" accept="application/json" style="display:none;">
+      <button class="ghost danger" id="new-tournament">🗑 Nouveau tournoi</button>
       <button class="ghost" id="open-account">🔑 Compte</button>
       <button class="ghost" id="do-logout">🔒 Déconnexion</button>
     </div>
@@ -470,47 +503,64 @@
 </div>
 
 <div class="poster-overlay" id="poster-overlay">
-  <div class="poster-modal">
+  <div class="poster-modal" role="dialog" aria-modal="true" aria-labelledby="poster-modal-title">
     <div class="poster-modal-head">
-      <h2>Affiche du match du jour</h2>
+      <h2 id="poster-modal-title">Affiche du match du jour</h2>
       <button class="ghost" id="poster-close">✕ Fermer</button>
     </div>
     <div class="poster-form">
       <div class="field">
-        <label>Type de match</label>
+        <label for="poster-format">Format de l'affiche</label>
+        <select id="poster-format">
+          <option value="square">Carré — 1080 × 1080 (post)</option>
+          <option value="portrait" selected>Portrait — 1080 × 1350 (post)</option>
+          <option value="story">Story — 1080 × 1920 (story/reel)</option>
+          <option value="a4">A4 vertical — impression</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="poster-type">Type de match</label>
         <select id="poster-type">
           <option value="MATCH DE POULE">Match de poule</option>
+          <option value="SEIZIÈME DE FINALE">Seizième de finale</option>
+          <option value="HUITIÈME DE FINALE">Huitième de finale</option>
           <option value="QUART DE FINALE">Quart de finale</option>
           <option value="DEMI-FINALE">Demi-finale</option>
           <option value="FINALE">Finale</option>
         </select>
       </div>
       <div class="field">
-        <label>Équipe A</label>
+        <label for="poster-match-picker">Depuis un match existant (optionnel)</label>
+        <select id="poster-match-picker">
+          <option value="">— Choisir un match pour tout pré-remplir —</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="poster-teamA">Équipe A</label>
         <select id="poster-teamA"></select>
       </div>
       <div class="field">
-        <label>Équipe B</label>
+        <label for="poster-teamB">Équipe B</label>
         <select id="poster-teamB"></select>
       </div>
       <div class="field">
-        <label>Heure</label>
+        <label for="poster-heure">Heure</label>
         <input id="poster-heure" class="time-text" type="text" placeholder="hh:mm" maxlength="5" inputmode="numeric">
       </div>
       <div class="field">
-        <label>Lieu</label>
+        <label for="poster-lieu">Lieu</label>
         <input id="poster-lieu" type="text" placeholder="Lieu de la rencontre">
       </div>
       <div class="field">
-        <label>Date</label>
+        <label for="poster-date">Date</label>
         <input id="poster-date" class="date-text" type="text" placeholder="jj/mm/aaaa" maxlength="10" inputmode="numeric">
       </div>
       <div class="field">
-        <label>Structure organisatrice</label>
+        <label for="poster-structure">Structure organisatrice</label>
         <input id="poster-structure" type="text" placeholder="Nom de la structure">
       </div>
       <div class="field">
-        <label>Logo sponsor (optionnel)</label>
+        <label for="poster-sponsor">Logo sponsor (optionnel)</label>
         <input id="poster-sponsor" type="file" accept="image/*">
       </div>
     </div>
@@ -520,6 +570,11 @@
     <div class="row-actions">
       <button class="primary" id="poster-generate">🎨 Générer l'affiche</button>
       <button class="ghost" id="poster-download" style="display:none;">⬇ Télécharger (PNG)</button>
+      <button class="ghost" id="poster-save-archive" style="display:none;">💾 Enregistrer dans mes affiches</button>
+    </div>
+    <div class="poster-archive">
+      <h3>Mes affiches enregistrées</h3>
+      <div id="poster-archive-list" class="poster-archive-list"></div>
     </div>
   </div>
 </div>
@@ -535,11 +590,150 @@ let state = {
   poules: null,       // {A:[team,...], ...}
   pouleMatches: null, // {A:[{aId,bId,scoreA,scoreB}, ...], ...}
   finalPhase: null,   // crossed knockout for the 2-poule format {demi1WinnerId, demi2WinnerId, finalWinnerId, dates}
-  bracket: null       // {rounds: [[match,...], ...]}
+  bracket: null,      // {rounds: [[match,...], ...]}
+  posters: []         // {id, name, createdAt, matchType, teamAId, teamBId, date, heure, lieu, structure, sponsorDataUrl, dataUrl}
 };
 
 function uid(){ return Math.random().toString(36).slice(2,9); }
-function save(){ try{ localStorage.__noop; }catch(e){} } // storage disabled per environment; state kept in memory only
+// Échappe toute valeur saisie par l'utilisateur (nom d'équipe, structure,
+// nom d'affiche, etc.) avant de l'insérer dans du HTML via innerHTML/template
+// literal. Sans ça, un nom d'équipe comme `<img src=x onerror=alert(1)>` ou
+// `"><script>...` s'exécuterait dans la page (XSS stocké) — ce n'était fait
+// nulle part dans le projet d'origine.
+function escapeHtml(str){
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ---------- Persistance (localStorage) ----------
+// Sauvegarde/restauration réelle de l'état du tournoi. Corrige le bug où
+// toute donnée (équipes, poules, scores, calendrier, bracket) était perdue
+// au moindre rechargement de page.
+function snapshotState(){
+  return {
+    v: 1,
+    savedAt: Date.now(),
+    step: state.step,
+    config: state.config,
+    teams: state.teams,
+    nbPoules: state.nbPoules,
+    poules: state.poules,
+    pouleMatches: state.pouleMatches,
+    finalPhase: state.finalPhase,
+    bracket: state.bracket,
+    posters: state.posters
+  };
+}
+function showSaveIndicator(ok, msg){
+  const el = document.getElementById('save-indicator');
+  if(!el) return;
+  el.classList.remove('ok','err');
+  if(ok){ el.textContent = msg || '● Sauvegardé'; el.classList.add('ok'); }
+  else { el.textContent = msg || '⚠ Sauvegarde impossible'; el.classList.add('err'); }
+}
+// Les affiches (PNG en base64) sont lourdes : si le quota localStorage est
+// dépassé, on retente sans les images d'affiches plutôt que de perdre tout
+// le tournoi (équipes/poules/scores/bracket restent prioritaires).
+function save(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshotState()));
+    showSaveIndicator(true);
+    return true;
+  }catch(e){
+    console.warn('Sauvegarde locale impossible (pleine ?) :', e);
+    try{
+      const lightSnapshot = snapshotState();
+      lightSnapshot.posters = (lightSnapshot.posters || []).map(p=>({ ...p, dataUrl: null, thumbnailOnly: true }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(lightSnapshot));
+      showSaveIndicator(false, '⚠ Espace insuffisant : affiches non sauvegardées');
+      return false;
+    }catch(e2){
+      showSaveIndicator(false);
+      return false;
+    }
+  }
+}
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    const data = JSON.parse(raw);
+    if(!data || typeof data !== 'object') return false;
+    state.step = typeof data.step === 'number' ? data.step : 0;
+    state.config = data.config || state.config;
+    state.teams = Array.isArray(data.teams) ? data.teams : [];
+    state.nbPoules = data.nbPoules || 4;
+    state.poules = data.poules || null;
+    state.pouleMatches = data.pouleMatches || null;
+    state.finalPhase = data.finalPhase || null;
+    state.bracket = data.bracket || null;
+    state.posters = Array.isArray(data.posters) ? data.posters : [];
+    return true;
+  }catch(e){
+    console.warn('Restauration locale impossible :', e);
+    return false;
+  }
+}
+function newTournament(){
+  const ok = confirm('Créer un nouveau tournoi ?\n\nToutes les données actuelles (équipes, poules, matchs, résultats, grille finale, affiches enregistrées) seront définitivement supprimées de cet appareil.\n\nAstuce : utilisez "Exporter" avant si vous voulez garder une copie.');
+  if(!ok) return;
+  state = {
+    step: 0,
+    config: { sport: 'FOOTBALL', categorie: 'SENIORS', sexe: 'H', poids: '', date: '', responsable: '' },
+    teams: [],
+    nbPoules: 4,
+    poules: null,
+    pouleMatches: null,
+    finalPhase: null,
+    bracket: null,
+    posters: []
+  };
+  save();
+  render();
+}
+function exportData(){
+  const blob = new Blob([JSON.stringify(snapshotState(), null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `tirage_de_poule_${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+function importDataFromFile(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    let data;
+    try{ data = JSON.parse(reader.result); }
+    catch(e){ alert('Fichier invalide : ce n\'est pas un fichier JSON exporté par cette application.'); return; }
+    if(!data || typeof data !== 'object' || !('teams' in data)){
+      alert('Fichier invalide : structure de données non reconnue.');
+      return;
+    }
+    const ok = confirm('Importer ce fichier va remplacer toutes les données actuelles sur cet appareil. Continuer ?');
+    if(!ok) return;
+    state.step = typeof data.step === 'number' ? data.step : 0;
+    state.config = data.config || state.config;
+    state.teams = Array.isArray(data.teams) ? data.teams : [];
+    state.nbPoules = data.nbPoules || 4;
+    state.poules = data.poules || null;
+    state.pouleMatches = data.pouleMatches || null;
+    state.finalPhase = data.finalPhase || null;
+    state.bracket = data.bracket || null;
+    state.posters = Array.isArray(data.posters) ? data.posters : [];
+    save();
+    render();
+  };
+  reader.readAsText(file);
+}
 
 // ---------- Accès sécurisé (compte utilisateur / mot de passe) ----------
 // Identifiants par défaut à la première ouverture — à changer immédiatement
@@ -555,6 +749,17 @@ async function sha256Hex(text){
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
+// Un sel aléatoire par compte limite l'utilité d'une table arc-en-ciel
+// précalculée si quelqu'un récupère le contenu de localStorage. Ça ne
+// remplace pas un vrai hachage lent côté serveur (bcrypt/argon2 + backend),
+// impossible à faire sérieusement dans une appli 100% frontend statique —
+// voir le rapport de sécurité pour cette limite.
+function randomSalt(){
+  return Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function hashPassword(pass, salt){
+  return sha256Hex(pass + (salt || ''));
+}
 
 function loadAccount(){
   try{
@@ -567,7 +772,8 @@ function saveAccount(acc){ try{ localStorage.setItem(AUTH_STORAGE_KEY, JSON.stri
 async function initAuth(){
   let acc = loadAccount();
   if(!acc){
-    acc = { username: AUTH_DEFAULT_USER, passwordHash: await sha256Hex(AUTH_DEFAULT_PASS), firstLogin: true };
+    const salt = randomSalt();
+    acc = { username: AUTH_DEFAULT_USER, salt, passwordHash: await hashPassword(AUTH_DEFAULT_PASS, salt), firstLogin: true };
     saveAccount(acc);
   }
   authState.account = acc;
@@ -604,8 +810,8 @@ function authLoginHtml(){
     <h1 class="auth-title">Tirage de Poule</h1>
     <div class="auth-subtitle">Zone 13C Ndiemane — Accès sécurisé</div>
     ${authState.error ? `<div class="auth-error">${authState.error}</div>` : ''}
-    <div class="field"><label>Identifiant</label><input type="text" id="auth-user" autocomplete="username"></div>
-    <div class="field"><label>Mot de passe</label><input type="password" id="auth-pass" autocomplete="current-password"></div>
+    <div class="field"><label for="auth-user">Identifiant</label><input type="text" id="auth-user" autocomplete="username"></div>
+    <div class="field"><label for="auth-pass">Mot de passe</label><input type="password" id="auth-pass" autocomplete="current-password"></div>
     <button class="primary" id="auth-submit">Se connecter</button>
     <div class="auth-hint">Application réservée aux utilisateurs autorisés de la Zone 13C.</div>
   </div>`;
@@ -619,8 +825,8 @@ function authChangePasswordHtml(){
     <div class="auth-subtitle">${forced ? 'Définissez votre mot de passe personnel' : 'Zone 13C Ndiemane'}</div>
     ${authState.error ? `<div class="auth-error">${authState.error}</div>` : ''}
     ${authState.ok ? `<div class="auth-ok">${authState.ok}</div>` : ''}
-    <div class="field"><label>Nouveau mot de passe</label><input type="password" id="auth-newpass" autocomplete="new-password"></div>
-    <div class="field"><label>Confirmer le mot de passe</label><input type="password" id="auth-newpass2" autocomplete="new-password"></div>
+    <div class="field"><label for="auth-newpass">Nouveau mot de passe</label><input type="password" id="auth-newpass" autocomplete="new-password"></div>
+    <div class="field"><label for="auth-newpass2">Confirmer le mot de passe</label><input type="password" id="auth-newpass2" autocomplete="new-password"></div>
     <button class="primary" id="auth-change-submit">Valider</button>
     ${forced ? '' : '<button class="link-btn" id="auth-cancel-change">Annuler</button>'}
     <div class="auth-hint">Minimum 6 caractères. Vous seul connaîtrez ce mot de passe.</div>
@@ -634,7 +840,7 @@ function attachAuthHandlers(){
       const u = document.getElementById('auth-user').value.trim();
       const p = document.getElementById('auth-pass').value;
       if(!u || !p){ authState.error = 'Merci de renseigner identifiant et mot de passe.'; renderAuth(); return; }
-      const hash = await sha256Hex(p);
+      const hash = await hashPassword(p, authState.account.salt);
       if(u === authState.account.username && hash === authState.account.passwordHash){
         authState.error = '';
         authState.loggedIn = true;
@@ -655,7 +861,8 @@ function attachAuthHandlers(){
       const p2 = document.getElementById('auth-newpass2').value;
       if(p1.length < 6){ authState.error = 'Le mot de passe doit contenir au moins 6 caractères.'; authState.ok=''; renderAuth(); return; }
       if(p1 !== p2){ authState.error = 'Les deux mots de passe ne correspondent pas.'; authState.ok=''; renderAuth(); return; }
-      authState.account.passwordHash = await sha256Hex(p1);
+      authState.account.salt = randomSalt();
+      authState.account.passwordHash = await hashPassword(p1, authState.account.salt);
       authState.account.firstLogin = false;
       saveAccount(authState.account);
       authState.error = '';
@@ -698,6 +905,7 @@ function render(){
   else if(state.step===2) c.innerHTML = renderTirage();
   else if(state.step===3) c.innerHTML = renderBracket();
   attachHandlers();
+  save();
 }
 
 function renderSteps(){
@@ -705,7 +913,7 @@ function renderSteps(){
   const el = document.getElementById('steps');
   el.innerHTML = labels.map((l,i)=>{
     const disabled = i===1 && false;
-    return `<button class="step-btn ${state.step===i?'active':''}" data-goto="${i}">
+    return `<button class="step-btn ${state.step===i?'active':''}" data-goto="${i}" ${state.step===i?'aria-current="step"':''}>
       <span class="num">${i+1}</span>${l.replace(/^\d+\.\s/,'')}
     </button>`;
   }).join('');
@@ -718,35 +926,35 @@ function renderSetup(){
     <h2>Configuration du tirage</h2>
     <div class="grid">
       <div class="field">
-        <label>Structure organisatrice</label>
-        <input id="cfg-responsable" value="${cfg.responsable}" placeholder="Nom de la structure / du responsable">
+        <label for="cfg-responsable">Structure organisatrice</label>
+        <input id="cfg-responsable" value="${escapeHtml(cfg.responsable)}" placeholder="Nom de la structure / du responsable">
       </div>
       <div class="field">
-        <label>Date du tirage</label>
-        <input id="cfg-date" type="text" class="date-text" placeholder="jj/mm/aaaa" maxlength="10" inputmode="numeric" value="${cfg.date}">
+        <label for="cfg-date">Date du tirage</label>
+        <input id="cfg-date" type="text" class="date-text" placeholder="jj/mm/aaaa" maxlength="10" inputmode="numeric" value="${escapeHtml(cfg.date)}">
       </div>
       <div class="field">
-        <label>Type de sport</label>
+        <label for="cfg-sport">Type de sport</label>
         <select id="cfg-sport">
           ${['FOOTBALL','TAEKWONDO','BASKETBALL'].map(s=>`<option ${cfg.sport===s?'selected':''}>${s}</option>`).join('')}
         </select>
       </div>
       <div class="field">
-        <label>Catégorie d'athlète</label>
+        <label for="cfg-categorie">Catégorie d'athlète</label>
         <select id="cfg-categorie">
           ${['SENIORS','CADETS','MINIME','BENJAMINS'].map(s=>`<option ${cfg.categorie===s?'selected':''}>${s}</option>`).join('')}
         </select>
       </div>
       <div class="field">
-        <label>Sexe</label>
+        <label for="cfg-sexe">Sexe</label>
         <select id="cfg-sexe">
           <option value="H" ${cfg.sexe==='H'?'selected':''}>Homme (H)</option>
           <option value="F" ${cfg.sexe==='F'?'selected':''}>Femme (F)</option>
         </select>
       </div>
       <div class="field">
-        <label>Poids (si applicable)</label>
-        <input id="cfg-poids" value="${cfg.poids}" placeholder="ex : -58kg">
+        <label for="cfg-poids">Poids (si applicable)</label>
+        <input id="cfg-poids" value="${escapeHtml(cfg.poids)}" placeholder="ex : -58kg">
       </div>
     </div>
     <div class="row-actions">
@@ -759,23 +967,23 @@ function renderTeams(){
   const list = state.teams.map(t=>`
     <li class="team-row">
       <div class="avatar-wrap">
-        <div class="avatar">${t.logo?`<img src="${t.logo}">`:t.name.slice(0,2).toUpperCase()}</div>
-        <button class="logo-edit-btn" data-edit-logo="${t.id}" title="Changer le logo">✎</button>
+        <div class="avatar">${t.logo?`<img src="${escapeHtml(t.logo)}" alt="">`:escapeHtml(t.name.slice(0,2).toUpperCase())}</div>
+        <button class="logo-edit-btn" data-edit-logo="${t.id}" title="Changer le logo" aria-label="Changer le logo de ${escapeHtml(t.name)}">✎</button>
       </div>
-      <div class="name">${t.name}</div>
-      <button data-remove="${t.id}" title="Retirer">✕</button>
+      <div class="name">${escapeHtml(t.name)}</div>
+      <button data-remove="${t.id}" title="Retirer" aria-label="Retirer l'équipe ${escapeHtml(t.name)}">✕</button>
     </li>`).join('');
   return `
   <div class="panel">
     <h2>Liste des participants / équipes</h2>
     <div class="team-add">
       <div class="field">
-        <label>Nom de l'équipe / athlète</label>
+        <label for="new-team-name">Nom de l'équipe / athlète</label>
         <input id="new-team-name" placeholder="ex : AS Diaraf">
       </div>
       <div class="field logo-zone-field">
         <label>Logo de l'équipe (optionnel)</label>
-        <div class="logo-zone" id="new-logo-picker">
+        <div class="logo-zone" id="new-logo-picker" role="button" tabindex="0" aria-label="Choisir un logo d'équipe (image)">
           <div class="logo-zone-preview" id="new-logo-preview">＋</div>
           <span class="logo-zone-text">Cliquer pour choisir une image</span>
         </div>
@@ -800,7 +1008,7 @@ function renderTirage(){
     <h2>Tirage au sort des poules</h2>
     <div class="meta-line">
       <span><b>${n}</b> équipes inscrites</span>
-      <span><b>${state.config.sport}</b> — ${state.config.categorie} ${state.config.sexe}${state.config.poids?(' — '+state.config.poids):''}</span>
+      <span><b>${state.config.sport}</b> — ${state.config.categorie} ${state.config.sexe}${state.config.poids?(' — '+escapeHtml(state.config.poids)):''}</span>
     </div>
     <div class="meta-line" style="color:rgba(246,244,236,0.65);">
       Chaque équipe joue une fois contre chaque adversaire de sa poule. Le 1er et le 2ème de chaque poule se qualifient directement pour les phases éliminatoires (quarts, demis, finale).
@@ -808,9 +1016,9 @@ function renderTirage(){
     <div class="poule-count">
       <label style="margin:0;">Nombre de poules</label>
       <div class="stepper">
-        <button id="poule-minus">−</button>
+        <button id="poule-minus" aria-label="Diminuer le nombre de poules">−</button>
         <span class="val" id="poule-val">${state.nbPoules}</span>
-        <button id="poule-plus">+</button>
+        <button id="poule-plus" aria-label="Augmenter le nombre de poules">+</button>
       </div>
     </div>
     <div class="urn" id="urn"></div>
@@ -870,12 +1078,12 @@ function renderBracket(){
   return `
   <div class="panel">
     <div class="grille-heading">
-      <div class="grille-eyebrow">${state.config.sport} · ${state.config.categorie} ${state.config.sexe}${state.config.poids?(' · '+state.config.poids):''}</div>
+      <div class="grille-eyebrow">${escapeHtml(state.config.sport||'')} · ${escapeHtml(state.config.categorie||'')} ${escapeHtml(state.config.sexe||'')}${state.config.poids?(' · '+escapeHtml(state.config.poids)):''}</div>
       <h2 class="grille-title">Tableau Final</h2>
     </div>
     <div class="meta-line">
-      <span><b>${state.config.responsable||'—'}</b></span>
-      <span>Tirage du <b>${state.config.date||'—'}</b></span>
+      <span><b>${escapeHtml(state.config.responsable || '') || '—'}</b></span>
+      <span>Tirage du <b>${escapeHtml(state.config.date || '') || '—'}</b></span>
       <span class="no-print">Cliquez sur une équipe pour la qualifier au tour suivant.</span>
     </div>
     <div class="bracket-scroll">
@@ -900,10 +1108,10 @@ function renderRoundColumn(ri, matches, offset, title){
 function renderMatchBox(m, ri, mi, isFinal){
   return `<div class="match ${isFinal?'final':''}" data-round="${ri}" data-match="${mi}">
     <div class="match-meta">
-      <input class="match-date date-text" type="text" placeholder="jj/mm/aaaa" maxlength="10" inputmode="numeric" value="${m.date||''}" data-round="${ri}" data-match="${mi}" data-field="date">
-      <input class="match-heure time-text" type="text" placeholder="hh:mm" maxlength="5" inputmode="numeric" value="${m.heure||''}" data-round="${ri}" data-match="${mi}" data-field="heure">
+      <input class="match-date date-text" type="text" placeholder="jj/mm/aaaa" maxlength="10" inputmode="numeric" value="${escapeHtml(m.date||'')}" data-round="${ri}" data-match="${mi}" data-field="date">
+      <input class="match-heure time-text" type="text" placeholder="hh:mm" maxlength="5" inputmode="numeric" value="${escapeHtml(m.heure||'')}" data-round="${ri}" data-match="${mi}" data-field="heure">
     </div>
-    <input class="match-lieu" type="text" placeholder="Lieu de la rencontre" value="${m.lieu||''}" data-round="${ri}" data-match="${mi}" data-field="lieu">
+    <input class="match-lieu" type="text" placeholder="Lieu de la rencontre" value="${escapeHtml(m.lieu||'')}" data-round="${ri}" data-match="${mi}" data-field="lieu">
     ${renderSlot(m.a, ri, mi, 0)}
     ${renderSlot(m.b, ri, mi, 1)}
   </div>`;
@@ -912,12 +1120,12 @@ function renderMatchBox(m, ri, mi, isFinal){
 function renderChampionTag(champion, blank){
   if(blank){
     return `<div class="champion-banner">
-      <input type="text" class="champion-name-input" placeholder="Nom du vainqueur" value="${champion?.name||''}">
+      <input type="text" class="champion-name-input" placeholder="Nom du vainqueur" value="${escapeHtml(champion?.name||'')}">
       <div class="tag">Vainqueur</div>
     </div>`;
   }
   return `<div class="champion-banner">
-    <div class="name">${champion ? champion.name : '?'}</div>
+    <div class="name">${champion ? escapeHtml(champion.name) : '?'}</div>
     <div class="tag">${champion ? 'Champion' : 'En attente'}</div>
   </div>`;
 }
@@ -927,15 +1135,15 @@ function renderSlot(team, ri, mi, slotIdx){
   if(team.editable){
     return `<div class="m-team editable-team">
       <div class="avatar" style="width:22px;height:22px;font-size:9px;">—</div>
-      <input type="text" class="team-name-input" placeholder="Équipe" value="${team.name||''}" data-round="${ri}" data-match="${mi}" data-slot="${slotIdx}">
+      <input type="text" class="team-name-input" placeholder="Équipe" value="${escapeHtml(team.name||'')}" data-round="${ri}" data-match="${mi}" data-slot="${slotIdx}">
     </div>`;
   }
   const isWinner = team.__winner;
   const seedBadge = (ri===0 && team.seed) ? `<span class="seed">${team.seed}</span>` : '';
   return `<div class="m-team ${isWinner?'winner':''}" data-advance="${ri}-${mi}-${slotIdx}">
     ${seedBadge}
-    <div class="avatar" style="width:22px;height:22px;font-size:9px;">${team.logo?`<img src="${team.logo}">`:team.name.slice(0,2).toUpperCase()}</div>
-    ${team.name}
+    <div class="avatar" style="width:22px;height:22px;font-size:9px;">${team.logo?`<img src="${escapeHtml(team.logo)}" alt="">`:escapeHtml(team.name.slice(0,2).toUpperCase())}</div>
+    ${escapeHtml(team.name)}
   </div>`;
 }
 
@@ -1035,11 +1243,14 @@ function attachHandlers(){
     const logoFileInput = document.getElementById('new-team-logo');
     const logoPreview = document.getElementById('new-logo-preview');
     logoPicker.onclick = ()=> logoFileInput.click();
+    logoPicker.onkeydown = (e)=>{
+      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); logoFileInput.click(); }
+    };
     logoFileInput.onchange = ()=>{
       const f = logoFileInput.files && logoFileInput.files[0];
       if(!f) return;
       const reader = new FileReader();
-      reader.onload = e=>{ logoPreview.innerHTML = `<img src="${e.target.result}">`; };
+      reader.onload = e=>{ logoPreview.innerHTML = `<img src="${e.target.result}" alt="Logo de l'équipe">`; };
       reader.readAsDataURL(f);
     };
     document.getElementById('add-team').onclick = ()=>{
@@ -1140,6 +1351,7 @@ function attachHandlers(){
       el.onchange = ()=>{
         const ri = parseInt(el.dataset.round), mi = parseInt(el.dataset.match), field = el.dataset.field;
         state.bracket.rounds[ri][mi][field] = el.value;
+        save();
       };
     });
     document.querySelectorAll('.team-name-input').forEach(inp=>{
@@ -1147,11 +1359,12 @@ function attachHandlers(){
         const ri = parseInt(inp.dataset.round), mi = parseInt(inp.dataset.match), slot = parseInt(inp.dataset.slot);
         const match = state.bracket.rounds[ri][mi];
         (slot===0 ? match.a : match.b).name = inp.value;
+        save();
       };
     });
     const champInput = document.querySelector('.champion-name-input');
     if(champInput){
-      champInput.oninput = ()=>{ state.bracket.champion.name = champInput.value; };
+      champInput.oninput = ()=>{ state.bracket.champion.name = champInput.value; save(); };
     }
   }
 }
@@ -1266,21 +1479,21 @@ function renderPoulesResult(){
       return `<div class="p-match-wrap">
         <div class="p-match">
           <div class="p-match-row">
-            <span class="pm-name"><span class="ha-badge home">D</span>${ta.name}</span>
+            <span class="pm-name"><span class="ha-badge home">D</span>${escapeHtml(ta.name)}</span>
             <input class="pm-score" type="number" min="0" data-letter="${letter}" data-mindex="${mi}" data-side="A" value="${m.scoreA}">
             <span class="pm-vs">—</span>
             <input class="pm-score" type="number" min="0" data-letter="${letter}" data-mindex="${mi}" data-side="B" value="${m.scoreB}">
-            <span class="pm-name" style="text-align:right;">${tb.name}<span class="ha-badge away">E</span></span>
+            <span class="pm-name" style="text-align:right;">${escapeHtml(tb.name)}<span class="ha-badge away">E</span></span>
           </div>
           <div class="p-match-extra">
-            <input class="pm-date date-text" type="text" placeholder="jj/mm/aaaa" maxlength="10" inputmode="numeric" data-letter="${letter}" data-mindex="${mi}" data-field="date" value="${m.date||''}">
-            <input class="pm-heure time-text" type="text" placeholder="hh:mm" maxlength="5" inputmode="numeric" data-letter="${letter}" data-mindex="${mi}" data-field="heure" value="${m.heure||''}">
+            <input class="pm-date date-text" type="text" placeholder="jj/mm/aaaa" maxlength="10" inputmode="numeric" data-letter="${letter}" data-mindex="${mi}" data-field="date" value="${escapeHtml(m.date||'')}">
+            <input class="pm-heure time-text" type="text" placeholder="hh:mm" maxlength="5" inputmode="numeric" data-letter="${letter}" data-mindex="${mi}" data-field="heure" value="${escapeHtml(m.heure||'')}">
           </div>
-          <input class="pm-lieu" type="text" placeholder="Lieu de la rencontre" data-letter="${letter}" data-mindex="${mi}" data-field="lieu" value="${m.lieu||''}">
+          <input class="pm-lieu" type="text" placeholder="Lieu de la rencontre" data-letter="${letter}" data-mindex="${mi}" data-field="lieu" value="${escapeHtml(m.lieu||'')}">
         </div>
         <div class="reorder-controls">
-          <button class="reorder-btn" title="Avancer la rencontre" data-dir="up" data-letter="${letter}" data-mindex="${mi}" ${mi===0?'disabled':''}>▲</button>
-          <button class="reorder-btn" title="Reporter la rencontre (match à rejouer)" data-dir="down" data-letter="${letter}" data-mindex="${mi}" ${mi===totalMatches-1?'disabled':''}>▼</button>
+          <button class="reorder-btn" title="Avancer la rencontre" aria-label="Avancer la rencontre" data-dir="up" data-letter="${letter}" data-mindex="${mi}" ${mi===0?'disabled':''}>▲</button>
+          <button class="reorder-btn" title="Reporter la rencontre (match à rejouer)" aria-label="Reporter la rencontre (match à rejouer)" data-dir="down" data-letter="${letter}" data-mindex="${mi}" ${mi===totalMatches-1?'disabled':''}>▼</button>
         </div>
       </div>`;
     }).join('') || '<div class="empty" style="padding:8px 0;">Poule à une seule équipe.</div>';
@@ -1296,12 +1509,12 @@ function renderPoulesResult(){
       const rows = byJournee[j].map(({m, mi})=>{
         const ta = teamsById[m.aId], tb = teamsById[m.bId];
         return `<div class="cal-row">
-          <span class="cal-team">${ta.name}</span>
+          <span class="cal-team">${escapeHtml(ta.name)}</span>
           <span class="cal-vs">vs</span>
-          <span class="cal-team right">${tb.name}</span>
-          <input class="pm-date date-text cal-date" type="text" placeholder="jj/mm/aaaa" maxlength="10" inputmode="numeric" data-letter="${letter}" data-mindex="${mi}" data-field="date" value="${m.date||''}">
-          <input class="pm-heure time-text cal-heure" type="text" placeholder="hh:mm" maxlength="5" inputmode="numeric" data-letter="${letter}" data-mindex="${mi}" data-field="heure" value="${m.heure||''}">
-          <input class="pm-lieu cal-lieu" type="text" placeholder="Lieu" data-letter="${letter}" data-mindex="${mi}" data-field="lieu" value="${m.lieu||''}">
+          <span class="cal-team right">${escapeHtml(tb.name)}</span>
+          <input class="pm-date date-text cal-date" type="text" placeholder="jj/mm/aaaa" maxlength="10" inputmode="numeric" data-letter="${letter}" data-mindex="${mi}" data-field="date" value="${escapeHtml(m.date||'')}">
+          <input class="pm-heure time-text cal-heure" type="text" placeholder="hh:mm" maxlength="5" inputmode="numeric" data-letter="${letter}" data-mindex="${mi}" data-field="heure" value="${escapeHtml(m.heure||'')}">
+          <input class="pm-lieu cal-lieu" type="text" placeholder="Lieu" data-letter="${letter}" data-mindex="${mi}" data-field="lieu" value="${escapeHtml(m.lieu||'')}">
         </div>`;
       }).join('');
       return `<div class="cal-journee"><div class="cal-journee-title">Journée ${j}</div>${rows}</div>`;
@@ -1311,7 +1524,7 @@ function renderPoulesResult(){
     const rowsHtml = standings.map((r,idx)=>`
       <tr class="${idx<2?'qualified':''}">
         <td class="rk">${idx+1}</td>
-        <td>${r.team.name}</td>
+        <td>${escapeHtml(r.team.name)}</td>
         <td>${r.mp}</td>
         <td>${r.w}</td>
         <td>${r.d}</td>
@@ -1378,11 +1591,13 @@ function renderPoulesResult(){
         const stage = input.dataset.fp, field = input.dataset.field;
         const key = stage + field.charAt(0).toUpperCase() + field.slice(1);
         state.finalPhase[key] = input.value;
+        save();
       };
     });
     const printFp = container.querySelector('#print-finalphase');
     if(printFp) printFp.onclick = ()=> window.print();
   }
+  save();
 }
 
 function renderFinalPhaseInline(){
@@ -1399,16 +1614,16 @@ function renderFinalPhaseInline(){
   const fpSlot = (team, stage, winnerId)=>{
     const isWinner = winnerId === team.id;
     return `<div class="m-team fp-team ${isWinner?'winner':''}" data-fp="${stage}" data-team="${team.id}">
-      <div class="avatar" style="width:22px;height:22px;font-size:9px;">${team.logo?`<img src="${team.logo}">`:team.name.slice(0,2).toUpperCase()}</div>
-      ${team.name}
+      <div class="avatar" style="width:22px;height:22px;font-size:9px;">${team.logo?`<img src="${escapeHtml(team.logo)}" alt="">`:escapeHtml(team.name.slice(0,2).toUpperCase())}</div>
+      ${escapeHtml(team.name)}
     </div>`;
   };
   const fpMeta = (stage, fp)=> `
     <div class="match-meta">
-      <input class="match-date fp-date date-text" type="text" placeholder="jj/mm/aaaa" maxlength="10" inputmode="numeric" data-fp="${stage}" data-field="date" value="${fp[stage+'Date']||''}">
-      <input class="match-heure fp-heure time-text" type="text" placeholder="hh:mm" maxlength="5" inputmode="numeric" data-fp="${stage}" data-field="heure" value="${fp[stage+'Heure']||''}">
+      <input class="match-date fp-date date-text" type="text" placeholder="jj/mm/aaaa" maxlength="10" inputmode="numeric" data-fp="${stage}" data-field="date" value="${escapeHtml(fp[stage+'Date']||'')}">
+      <input class="match-heure fp-heure time-text" type="text" placeholder="hh:mm" maxlength="5" inputmode="numeric" data-fp="${stage}" data-field="heure" value="${escapeHtml(fp[stage+'Heure']||'')}">
     </div>
-    <input class="match-lieu fp-lieu" type="text" placeholder="Lieu de la rencontre" data-fp="${stage}" data-field="lieu" value="${fp[stage+'Lieu']||''}">`;
+    <input class="match-lieu fp-lieu" type="text" placeholder="Lieu de la rencontre" data-fp="${stage}" data-field="lieu" value="${escapeHtml(fp[stage+'Lieu']||'')}">`;
 
   const demi1Winner = [A1,B2].find(t=>t.id===fp.demi1WinnerId) || null;
   const demi2Winner = [B1,A2].find(t=>t.id===fp.demi2WinnerId) || null;
@@ -1446,7 +1661,7 @@ function renderFinalPhaseInline(){
             ${finalSlotHtml(1)}
           </div>
           <div class="champion-banner">
-            <div class="name">${champion ? champion.name : '?'}</div>
+            <div class="name">${champion ? escapeHtml(champion.name) : '?'}</div>
             <div class="tag">${champion ? 'Champion' : 'En attente'}</div>
           </div>
         </div>
@@ -1515,13 +1730,14 @@ document.addEventListener('input', function(e){
 
 // ---- Affiche de la rencontre du jour ----
 let posterSponsorDataUrl = null;
+let posterLastFocusedEl = null;
 
 function openPosterModal(){
   if(state.teams.length < 2){
     alert("Ajoutez au moins deux équipes (étape Liste) avant de créer une affiche.");
     return;
   }
-  const optionsHtml = state.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  const optionsHtml = state.teams.map(t=>`<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
   const selA = document.getElementById('poster-teamA');
   const selB = document.getElementById('poster-teamB');
   selA.innerHTML = optionsHtml;
@@ -1530,13 +1746,95 @@ function openPosterModal(){
   document.getElementById('poster-type').value = 'MATCH DE POULE';
   document.getElementById('poster-structure').value = state.config.responsable || '';
   document.getElementById('poster-date').value = state.config.date || '';
+  populateMatchPicker();
   posterSponsorDataUrl = null;
   document.getElementById('poster-sponsor').value = '';
   document.getElementById('poster-download').style.display = 'none';
+  document.getElementById('poster-save-archive').style.display = 'none';
+  renderPosterArchive();
+  posterLastFocusedEl = document.activeElement;
   document.getElementById('poster-overlay').classList.add('open');
+  document.getElementById('poster-close').focus();
 }
 function closePosterModal(){
   document.getElementById('poster-overlay').classList.remove('open');
+  if(posterLastFocusedEl && typeof posterLastFocusedEl.focus === 'function'){
+    posterLastFocusedEl.focus();
+  }
+}
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Escape' && document.getElementById('poster-overlay').classList.contains('open')){
+    closePosterModal();
+  }
+});
+
+// ---------- Auto-remplissage depuis un match existant ----------
+const ROUND_NAME_TO_POSTER_TYPE = {
+  'Finale': 'FINALE',
+  'Demi-finales': 'DEMI-FINALE',
+  'Quarts de finale': 'QUART DE FINALE',
+  'Huitièmes de finale': 'HUITIÈME DE FINALE',
+  'Seizièmes de finale': 'SEIZIÈME DE FINALE'
+};
+function collectPosterMatchOptions(){
+  const options = [];
+  const teamsById = {};
+  state.teams.forEach(t=> teamsById[t.id] = t);
+
+  if(state.pouleMatches){
+    Object.keys(state.pouleMatches).sort().forEach(letter=>{
+      (state.pouleMatches[letter] || []).forEach((m, mi)=>{
+        const ta = teamsById[m.aId], tb = teamsById[m.bId];
+        if(!ta || !tb) return;
+        options.push({
+          value: `poule:${letter}:${mi}`,
+          label: `Poule ${letter} · J${m.journee || '?'} : ${escapeHtml(ta.name)} vs ${escapeHtml(tb.name)}`,
+          matchType: 'MATCH DE POULE',
+          teamAId: ta.id, teamBId: tb.id,
+          date: m.date || '', heure: m.heure || '', lieu: m.lieu || ''
+        });
+      });
+    });
+  }
+  if(state.bracket && state.bracket.rounds){
+    const roundNames = computeRoundNames(state.bracket.rounds.length);
+    state.bracket.rounds.forEach((round, ri)=>{
+      round.forEach((m, mi)=>{
+        const ta = m.a && !m.a.editable && teamsById[m.a.id] ? teamsById[m.a.id] : (m.a && m.a.name ? m.a : null);
+        const tb = m.b && !m.b.editable && teamsById[m.b.id] ? teamsById[m.b.id] : (m.b && m.b.name ? m.b : null);
+        if(!ta || !tb || !ta.name || !tb.name) return;
+        const roundName = roundNames[ri] || `Tour ${ri+1}`;
+        options.push({
+          value: `bracket:${ri}:${mi}`,
+          label: `${roundName} : ${escapeHtml(ta.name)} vs ${escapeHtml(tb.name)}`,
+          matchType: ROUND_NAME_TO_POSTER_TYPE[roundName] || 'MATCH DE POULE',
+          teamAId: ta.id, teamBId: tb.id,
+          date: m.date || '', heure: m.heure || '', lieu: m.lieu || ''
+        });
+      });
+    });
+  }
+  return options;
+}
+function populateMatchPicker(){
+  const picker = document.getElementById('poster-match-picker');
+  const options = collectPosterMatchOptions();
+  picker.innerHTML = '<option value="">— Choisir un match pour tout pré-remplir —</option>' +
+    options.map(o=> `<option value="${o.value}">${o.label}</option>`).join('');
+  picker.onchange = ()=>{
+    if(!picker.value) return;
+    const chosen = options.find(o=>o.value===picker.value);
+    if(!chosen) return;
+    document.getElementById('poster-type').value = chosen.matchType;
+    // Team selects only contain real teams (state.teams) as options: only set
+    // the value when that id actually exists there, so a "blank" bracket slot
+    // never silently selects the wrong team.
+    if(state.teams.find(t=>t.id===chosen.teamAId)) document.getElementById('poster-teamA').value = chosen.teamAId;
+    if(state.teams.find(t=>t.id===chosen.teamBId)) document.getElementById('poster-teamB').value = chosen.teamBId;
+    document.getElementById('poster-date').value = chosen.date;
+    document.getElementById('poster-heure').value = chosen.heure;
+    document.getElementById('poster-lieu').value = chosen.lieu;
+  };
 }
 
 function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight){
@@ -1566,6 +1864,19 @@ function loadImageAsync(src){
   });
 }
 
+// ---------- Formats d'affiche ----------
+// Toute la mise en page ci-dessous a été conçue pour un canevas de 800×1200 :
+// on garde ce ratio comme référence et on multiplie les tailles fixes
+// (polices, épaisseurs, rayons...) par S = largeur réelle / 800 pour que le
+// rendu reste proportionné quel que soit le format choisi. Les positions déjà
+// exprimées en fraction de H (H*0.40, H*0.775, ...) s'adaptent d'elles-mêmes.
+const POSTER_FORMATS = {
+  square:   { w: 1080, h: 1080 },
+  portrait: { w: 1080, h: 1350 },
+  story:    { w: 1080, h: 1920 },
+  a4:       { w: 1240, h: 1754 } // ratio A4 (210×297mm) à une résolution d'écran raisonnable
+};
+
 async function generatePoster(){
   const teamA = state.teams.find(t=>t.id===document.getElementById('poster-teamA').value);
   const teamB = state.teams.find(t=>t.id===document.getElementById('poster-teamB').value);
@@ -1579,9 +1890,14 @@ async function generatePoster(){
   const date = document.getElementById('poster-date').value;
   const structure = document.getElementById('poster-structure').value;
 
+  const formatKey = document.getElementById('poster-format').value || 'portrait';
+  const format = POSTER_FORMATS[formatKey] || POSTER_FORMATS.portrait;
   const canvas = document.getElementById('poster-canvas');
+  canvas.width = format.w;
+  canvas.height = format.h;
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
+  const S = W / 800; // facteur d'échelle pour les tailles fixes (polices, traits, rayons...)
 
   if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
 
@@ -1598,12 +1914,12 @@ async function generatePoster(){
   ctx.save();
   ctx.fillStyle = 'rgba(255,255,255,0.07)';
   for(let tier=0; tier<3; tier++){
-    const ty = 60 + tier*26;
+    const ty = (60 + tier*26) * S;
     ctx.beginPath();
     ctx.moveTo(-40, ty);
-    ctx.quadraticCurveTo(W/2, ty-42-tier*8, W+40, ty);
-    ctx.lineTo(W+40, ty+16);
-    ctx.quadraticCurveTo(W/2, ty-26-tier*8, -40, ty+16);
+    ctx.quadraticCurveTo(W/2, ty-(42+tier*8)*S, W+40, ty);
+    ctx.lineTo(W+40, ty+16*S);
+    ctx.quadraticCurveTo(W/2, ty-(26+tier*8)*S, -40, ty+16*S);
     ctx.closePath();
     ctx.fill();
   }
@@ -1611,9 +1927,9 @@ async function generatePoster(){
   ctx.globalAlpha = 0.5;
   ctx.fillStyle = '#EAF6FF';
   for(let i=0;i<70;i++){
-    const px = (i*11.7) % (W+40) - 20;
-    const py = 44 + Math.sin(i*1.3)*6 + (Math.sin(i*7)>0? 0:4);
-    ctx.beginPath(); ctx.arc(px, py, 1.6, 0, Math.PI*2); ctx.fill();
+    const px = (i*11.7*S) % (W+40) - 20;
+    const py = (44 + Math.sin(i*1.3)*6 + (Math.sin(i*7)>0? 0:4)) * S;
+    ctx.beginPath(); ctx.arc(px, py, 1.6*S, 0, Math.PI*2); ctx.fill();
   }
   ctx.restore();
 
@@ -1621,23 +1937,23 @@ async function generatePoster(){
   function floodlight(x, topY){
     ctx.save();
     ctx.strokeStyle = 'rgba(234,246,255,0.35)';
-    ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.moveTo(x, topY); ctx.lineTo(x, topY+120); ctx.stroke();
+    ctx.lineWidth = 4*S;
+    ctx.beginPath(); ctx.moveTo(x, topY); ctx.lineTo(x, topY+120*S); ctx.stroke();
     ctx.fillStyle = 'rgba(234,246,255,0.5)';
-    ctx.fillRect(x-26, topY-10, 52, 12);
+    ctx.fillRect(x-26*S, topY-10*S, 52*S, 12*S);
     // faisceaux lumineux
     ctx.globalAlpha = 0.10;
     ctx.fillStyle = '#EAF6FF';
     ctx.beginPath();
     ctx.moveTo(x, topY);
-    ctx.lineTo(x-90, topY+230);
-    ctx.lineTo(x+90, topY+230);
+    ctx.lineTo(x-90*S, topY+230*S);
+    ctx.lineTo(x+90*S, topY+230*S);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
   }
-  floodlight(46, 14);
-  floodlight(W-46, 14);
+  floodlight(46*S, 14*S);
+  floodlight(W-46*S, 14*S);
 
   // pelouse / lueur verte en bas de l'affiche
   ctx.save();
@@ -1664,38 +1980,38 @@ async function generatePoster(){
   // ---- bandeau structure organisatrice ----
   ctx.textAlign = 'center';
   ctx.fillStyle = '#57C2F0';
-  ctx.font = '700 18px "JetBrains Mono", monospace';
-  ctx.fillText((structure || 'STRUCTURE ORGANISATRICE').toUpperCase(), W/2, 122);
+  ctx.font = `700 ${18*S}px "JetBrains Mono", monospace`;
+  ctx.fillText((structure || 'STRUCTURE ORGANISATRICE').toUpperCase(), W/2, 122*S);
 
   // ---- type de match, en grand, entre deux silhouettes de trophée ----
-  ctx.font = '400 40px Anton, sans-serif';
+  ctx.font = `400 ${40*S}px Anton, sans-serif`;
   const typeWidth = ctx.measureText(matchType).width;
-  const trophySize = 46;
-  const trophyGap = 26;
+  const trophySize = 46*S;
+  const trophyGap = 26*S;
   ctx.font = `${trophySize}px sans-serif`;
   ctx.globalAlpha = 0.92;
-  ctx.fillText('🏆', W/2 - typeWidth/2 - trophyGap, 170);
-  ctx.fillText('🏆', W/2 + typeWidth/2 + trophyGap, 170);
+  ctx.fillText('🏆', W/2 - typeWidth/2 - trophyGap, 170*S);
+  ctx.fillText('🏆', W/2 + typeWidth/2 + trophyGap, 170*S);
   ctx.globalAlpha = 1;
 
   ctx.fillStyle = '#EAF6FF';
-  ctx.font = '400 40px Anton, sans-serif';
-  ctx.fillText(matchType.toUpperCase(), W/2, 178);
+  ctx.font = `400 ${40*S}px Anton, sans-serif`;
+  ctx.fillText(matchType.toUpperCase(), W/2, 178*S);
 
   ctx.strokeStyle = '#57C2F0';
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 3*S;
   ctx.beginPath();
-  ctx.moveTo(W/2-100, 198); ctx.lineTo(W/2+100,198); ctx.stroke();
+  ctx.moveTo(W/2-100*S, 198*S); ctx.lineTo(W/2+100*S,198*S); ctx.stroke();
 
   const eyebrow = `${state.config.sport} · ${state.config.categorie} ${state.config.sexe}`;
   ctx.fillStyle = 'rgba(246,244,236,0.6)';
-  ctx.font = '400 18px "JetBrains Mono", monospace';
-  ctx.fillText(eyebrow, W/2, 230);
+  ctx.font = `400 ${18*S}px "JetBrains Mono", monospace`;
+  ctx.fillText(eyebrow, W/2, 230*S);
 
   // team logos / initials
   const [imgA, imgB] = await Promise.all([loadImageAsync(teamA.logo), loadImageAsync(teamB.logo)]);
   const circleY = H*0.40;
-  const circleR = 95;
+  const circleR = 95*S;
   const leftX = W*0.27, rightX = W*0.73;
 
   function drawTeamCircle(x, img, team){
@@ -1705,7 +2021,7 @@ async function generatePoster(){
     ctx.closePath();
     ctx.fillStyle = '#1B4F7D';
     ctx.fill();
-    ctx.lineWidth = 5;
+    ctx.lineWidth = 5*S;
     ctx.strokeStyle = '#57C2F0';
     ctx.stroke();
     ctx.clip();
@@ -1713,10 +2029,10 @@ async function generatePoster(){
       ctx.drawImage(img, x-circleR, circleY-circleR, circleR*2, circleR*2);
     } else {
       ctx.fillStyle = '#EAF6FF';
-      ctx.font = '700 50px "JetBrains Mono", monospace';
+      ctx.font = `700 ${50*S}px "JetBrains Mono", monospace`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(team.name.slice(0,2).toUpperCase(), x, circleY+6);
+      ctx.fillText(team.name.slice(0,2).toUpperCase(), x, circleY+6*S);
       ctx.textBaseline = 'alphabetic';
     }
     ctx.restore();
@@ -1725,61 +2041,61 @@ async function generatePoster(){
   drawTeamCircle(rightX, imgB, teamB);
 
   ctx.fillStyle = '#57C2F0';
-  ctx.font = '400 50px Anton, sans-serif';
+  ctx.font = `400 ${50*S}px Anton, sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText('VS', W/2, circleY+18);
+  ctx.fillText('VS', W/2, circleY+18*S);
 
   ctx.fillStyle = '#EAF6FF';
-  ctx.font = '700 28px Oswald, sans-serif';
-  wrapCanvasText(ctx, teamA.name.toUpperCase(), leftX, circleY+circleR+48, 230, 32);
-  wrapCanvasText(ctx, teamB.name.toUpperCase(), rightX, circleY+circleR+48, 230, 32);
+  ctx.font = `700 ${28*S}px Oswald, sans-serif`;
+  wrapCanvasText(ctx, teamA.name.toUpperCase(), leftX, circleY+circleR+48*S, 230*S, 32*S);
+  wrapCanvasText(ctx, teamB.name.toUpperCase(), rightX, circleY+circleR+48*S, 230*S, 32*S);
 
   // ---- message fair-play ----
   ctx.fillStyle = '#57C2F0';
-  ctx.font = 'italic 700 20px Oswald, sans-serif';
+  ctx.font = `italic 700 ${20*S}px Oswald, sans-serif`;
   ctx.fillText('★ QUE LE MEILLEUR GAGNE DANS LE FAIR-PLAY ★', W/2, H*0.735);
 
   // ---- bandeau date / heure / lieu ----
   const barY = H*0.775;
-  const sponsorBandH = 110;
+  const sponsorBandH = 110*S;
   const barBottom = H - sponsorBandH;
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
   ctx.fillRect(0, barY, W, barBottom-barY);
   ctx.strokeStyle = '#57C2F0';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2*S;
   ctx.beginPath(); ctx.moveTo(0,barY); ctx.lineTo(W,barY); ctx.stroke();
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#57C2F0';
-  ctx.font = '700 16px "JetBrains Mono", monospace';
-  ctx.fillText('DATE & HEURE', W*0.27, barY+48);
-  ctx.fillText('LIEU', W*0.73, barY+48);
+  ctx.font = `700 ${16*S}px "JetBrains Mono", monospace`;
+  ctx.fillText('DATE & HEURE', W*0.27, barY+48*S);
+  ctx.fillText('LIEU', W*0.73, barY+48*S);
 
   ctx.fillStyle = '#EAF6FF';
-  ctx.font = '400 28px Oswald, sans-serif';
-  wrapCanvasText(ctx, `${date || '—'}  •  ${heure || '—'}`, W*0.27, barY+86, 260, 32);
-  wrapCanvasText(ctx, lieu || '—', W*0.73, barY+86, 260, 32);
+  ctx.font = `400 ${28*S}px Oswald, sans-serif`;
+  wrapCanvasText(ctx, `${date || '—'}  •  ${heure || '—'}`, W*0.27, barY+86*S, 260*S, 32*S);
+  wrapCanvasText(ctx, lieu || '—', W*0.73, barY+86*S, 260*S, 32*S);
 
   // ---- bandeau sponsor (bas de l'affiche) ----
   ctx.fillStyle = 'rgba(255,255,255,0.04)';
   ctx.fillRect(0, barBottom, W, sponsorBandH);
   ctx.strokeStyle = 'rgba(87,194,240,0.4)';
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 1*S;
   ctx.beginPath(); ctx.moveTo(0,barBottom); ctx.lineTo(W,barBottom); ctx.stroke();
 
   ctx.fillStyle = 'rgba(234,246,255,0.5)';
-  ctx.font = '700 12px "JetBrains Mono", monospace';
+  ctx.font = `700 ${12*S}px "JetBrains Mono", monospace`;
   ctx.textAlign = 'center';
-  ctx.fillText('PARTENAIRE', W/2, barBottom+22);
+  ctx.fillText('PARTENAIRE', W/2, barBottom+22*S);
 
   if(posterSponsorDataUrl){
     const sponsorImg = await loadImageAsync(posterSponsorDataUrl);
     if(sponsorImg){
-      const maxH = 62, maxW = 260;
+      const maxH = 62*S, maxW = 260*S;
       let dw = sponsorImg.width, dh = sponsorImg.height;
       const scale = Math.min(maxW/dw, maxH/dh, 1);
       dw *= scale; dh *= scale;
-      ctx.drawImage(sponsorImg, W/2 - dw/2, barBottom + 30, dw, dh);
+      ctx.drawImage(sponsorImg, W/2 - dw/2, barBottom + 30*S, dw, dh);
     }
   }
 
@@ -1792,6 +2108,116 @@ async function generatePoster(){
     link.href = canvas.toDataURL('image/png');
     link.click();
   };
+
+  const saveArchiveBtn = document.getElementById('poster-save-archive');
+  saveArchiveBtn.style.display = 'inline-block';
+  saveArchiveBtn.onclick = ()=>{
+    saveCurrentPosterToArchive({
+      matchType, teamAId: teamA.id, teamBId: teamB.id,
+      date, heure, lieu, structure,
+      sponsorDataUrl: posterSponsorDataUrl,
+      dataUrl: canvas.toDataURL('image/png'),
+      teamAName: teamA.name, teamBName: teamB.name
+    });
+  };
+}
+
+// ---------- Archivage des affiches (persistance locale) ----------
+function saveCurrentPosterToArchive(entry){
+  const defaultName = `${entry.teamAName} vs ${entry.teamBName}`;
+  const name = prompt('Nom de cette affiche :', defaultName);
+  if(name === null) return; // annulé
+  const poster = {
+    id: uid(),
+    name: name.trim() || defaultName,
+    createdAt: Date.now(),
+    ...entry
+  };
+  state.posters = state.posters || [];
+  state.posters.unshift(poster);
+  const ok = save();
+  renderPosterArchive();
+  if(!ok){
+    alert("L'affiche est enregistrée pour cette session, mais l'espace de stockage de l'appareil est plein : elle risque d'être perdue au rechargement. Pensez à la télécharger.");
+  }
+}
+function renderPosterArchive(){
+  const container = document.getElementById('poster-archive-list');
+  if(!container) return;
+  const posters = state.posters || [];
+  if(posters.length === 0){
+    container.innerHTML = '<div class="poster-archive-empty">Aucune affiche enregistrée pour l\'instant. Générez une affiche puis cliquez sur « Enregistrer dans mes affiches ».</div>';
+    return;
+  }
+  container.innerHTML = posters.map(p=>`
+    <div class="poster-card" data-id="${p.id}">
+      ${p.dataUrl ? `<img src="${p.dataUrl}" alt="${escapeHtml(p.name)}">` : '<div class="poster-archive-empty">Image non conservée (espace insuffisant)</div>'}
+      <div class="poster-card-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</div>
+      <div class="poster-card-actions">
+        <button data-action="reuse">↺ Réutiliser</button>
+        <button data-action="rename">✎ Renommer</button>
+        <button data-action="duplicate">⧉ Dupliquer</button>
+        ${p.dataUrl ? '<button data-action="download" aria-label="Télécharger cette affiche">⬇</button>' : ''}
+        <button data-action="delete" class="danger" aria-label="Supprimer cette affiche">🗑</button>
+      </div>
+    </div>
+  `).join('');
+  container.querySelectorAll('.poster-card').forEach(card=>{
+    const id = card.dataset.id;
+    card.querySelector('[data-action="reuse"]').onclick = ()=> reusePosterFromArchive(id);
+    card.querySelector('[data-action="rename"]').onclick = ()=> renamePosterInArchive(id);
+    card.querySelector('[data-action="duplicate"]').onclick = ()=> duplicatePosterInArchive(id);
+    const dl = card.querySelector('[data-action="download"]');
+    if(dl) dl.onclick = ()=> downloadPosterFromArchive(id);
+    card.querySelector('[data-action="delete"]').onclick = ()=> deletePosterInArchive(id);
+  });
+}
+function reusePosterFromArchive(id){
+  const p = (state.posters||[]).find(x=>x.id===id);
+  if(!p) return;
+  document.getElementById('poster-type').value = p.matchType || 'MATCH DE POULE';
+  if(state.teams.find(t=>t.id===p.teamAId)) document.getElementById('poster-teamA').value = p.teamAId;
+  if(state.teams.find(t=>t.id===p.teamBId)) document.getElementById('poster-teamB').value = p.teamBId;
+  document.getElementById('poster-heure').value = p.heure || '';
+  document.getElementById('poster-lieu').value = p.lieu || '';
+  document.getElementById('poster-date').value = p.date || '';
+  document.getElementById('poster-structure').value = p.structure || '';
+  posterSponsorDataUrl = p.sponsorDataUrl || null;
+  generatePoster();
+}
+function renamePosterInArchive(id){
+  const p = (state.posters||[]).find(x=>x.id===id);
+  if(!p) return;
+  const name = prompt('Nouveau nom :', p.name);
+  if(name === null || !name.trim()) return;
+  p.name = name.trim();
+  save();
+  renderPosterArchive();
+}
+function duplicatePosterInArchive(id){
+  const p = (state.posters||[]).find(x=>x.id===id);
+  if(!p) return;
+  const copy = { ...p, id: uid(), name: p.name + ' (copie)', createdAt: Date.now() };
+  state.posters.unshift(copy);
+  save();
+  renderPosterArchive();
+}
+function downloadPosterFromArchive(id){
+  const p = (state.posters||[]).find(x=>x.id===id);
+  if(!p || !p.dataUrl) return;
+  const link = document.createElement('a');
+  const safe = (s)=> String(s).replace(/[^a-z0-9]+/gi,'_');
+  link.download = `affiche_${safe(p.name)}.png`;
+  link.href = p.dataUrl;
+  link.click();
+}
+function deletePosterInArchive(id){
+  const p = (state.posters||[]).find(x=>x.id===id);
+  if(!p) return;
+  if(!confirm(`Supprimer définitivement l'affiche « ${p.name} » ?`)) return;
+  state.posters = state.posters.filter(x=>x.id!==id);
+  save();
+  renderPosterArchive();
 }
 
 document.getElementById('poster-sponsor').addEventListener('change', (e)=>{
@@ -1811,6 +2237,16 @@ document.getElementById('poster-overlay').addEventListener('click', (e)=>{
 });
 
 document.getElementById('header-logo').innerHTML = z13cLogoSvg();
+document.getElementById('export-data').onclick = exportData;
+document.getElementById('import-data-btn').onclick = ()=> document.getElementById('import-data-file').click();
+document.getElementById('import-data-file').addEventListener('change', (e)=>{
+  const file = e.target.files && e.target.files[0];
+  importDataFromFile(file);
+  e.target.value = '';
+});
+document.getElementById('new-tournament').onclick = newTournament;
+
+loadState();
 initAuth();
 </script>
 </body>
