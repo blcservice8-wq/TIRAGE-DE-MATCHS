@@ -738,7 +738,7 @@ function importDataFromFile(file){
 // ---------- Accès sécurisé (compte utilisateur / mot de passe) ----------
 // Identifiants par défaut à la première ouverture — à changer immédiatement
 // via le bouton "🔑 Compte" ou lors de l'écran de premier accès forcé.
-const AUTH_DEFAULT_USER = 'admin';
+const AUTH_DEFAULT_USER = 'zone13c';
 const AUTH_DEFAULT_PASS = 'zone13c2026';
 const AUTH_STORAGE_KEY = 'tirage_poule_auth_v1';
 const AUTH_SESSION_KEY = 'tirage_poule_session_v1';
@@ -813,6 +813,7 @@ function authLoginHtml(){
     <div class="field"><label for="auth-user">Identifiant</label><input type="text" id="auth-user" autocomplete="username"></div>
     <div class="field"><label for="auth-pass">Mot de passe</label><input type="password" id="auth-pass" autocomplete="current-password"></div>
     <button class="primary" id="auth-submit">Se connecter</button>
+    <button class="link-btn" id="auth-reset-access">Identifiant ou mot de passe oublié / incorrect ?</button>
     <div class="auth-hint">Application réservée aux utilisateurs autorisés de la Zone 13C.</div>
   </div>`;
 }
@@ -853,6 +854,24 @@ function attachAuthHandlers(){
     };
     submit.onclick = doLogin;
     document.getElementById('auth-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+  }
+  const resetAccess = document.getElementById('auth-reset-access');
+  if(resetAccess){
+    resetAccess.onclick = async ()=>{
+      const ok = confirm(
+        `Réinitialiser l'accès sur cet appareil ?\n\n` +
+        `L'identifiant et le mot de passe repasseront à leur valeur par défaut :\n` +
+        `Identifiant : ${AUTH_DEFAULT_USER}\nMot de passe : ${AUTH_DEFAULT_PASS}\n\n` +
+        `Il faudra en redéfinir un à la première connexion.\n` +
+        `Cela ne touche pas au tournoi en cours (équipes, poules, affiches) : uniquement l'accès.\n` +
+        `Cette réinitialisation n'agit que sur ce navigateur, sur cet appareil.`
+      );
+      if(!ok) return;
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      sessionStorage.removeItem(AUTH_SESSION_KEY);
+      authState = { account: null, loggedIn: false, mustChange: false, changingVoluntary: false, error: '', ok: '' };
+      await initAuth();
+    };
   }
   const changeSubmit = document.getElementById('auth-change-submit');
   if(changeSubmit){
