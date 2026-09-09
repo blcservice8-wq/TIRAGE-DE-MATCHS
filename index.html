@@ -1043,7 +1043,9 @@ function renderTirage(){
     <div class="urn" id="urn"></div>
     <div class="row-actions" style="justify-content:flex-start;">
       <button class="primary" id="launch-tirage" ${n<2?'disabled':''}>🎱 Lancer le tirage au sort</button>
+      <button class="ghost" id="manual-tirage" ${n<2?'disabled':''}>✎ Éditer les poules manuellement</button>
     </div>
+    <div id="manual-poules-editor" style="display:none;"></div>
     <div id="poules-result"></div>
     <div class="row-actions">
       <button class="ghost" id="back-teams">← Retour</button>
@@ -1324,12 +1326,17 @@ function attachHandlers(){
     document.getElementById('poule-minus').onclick = ()=>{
       state.nbPoules = Math.max(2, state.nbPoules-1);
       document.getElementById('poule-val').textContent = state.nbPoules;
+      const editor = document.getElementById('manual-poules-editor');
+      if(editor && editor.style.display !== 'none') renderManualEditor();
     };
     document.getElementById('poule-plus').onclick = ()=>{
       state.nbPoules = Math.min(8, state.nbPoules+1);
       document.getElementById('poule-val').textContent = state.nbPoules;
+      const editor = document.getElementById('manual-poules-editor');
+      if(editor && editor.style.display !== 'none') renderManualEditor();
     };
     document.getElementById('launch-tirage').onclick = ()=> runTirage();
+    document.getElementById('manual-tirage').onclick = ()=> openManualEditor();
     document.getElementById('back-teams').onclick = ()=>{ state.step=1; render(); };
     document.getElementById('go-bracket-blank').onclick = ()=>{
       state.bracket = buildBlankBracket();
@@ -1421,6 +1428,77 @@ function runTirage(){
     }, i*120);
   });
   setTimeout(renderPoulesResult, letters.length*120 + 250);
+}
+
+// ---------- Édition manuelle des poules ----------
+function openManualEditor(){
+  const editor = document.getElementById('manual-poules-editor');
+  if(!editor) return;
+  editor.style.display = editor.style.display==='none' ? '' : 'none';
+  if(editor.style.display !== 'none') renderManualEditor();
+}
+function renderManualEditor(){
+  const editor = document.getElementById('manual-poules-editor');
+  if(!editor) return;
+  const letters = 'ABCDEFGH'.split('').slice(0, state.nbPoules);
+  // pré-remplissage : répartition existante si présente, sinon round-robin par défaut
+  const assign = {};
+  if(state.poules){
+    Object.keys(state.poules).forEach(l=>{
+      (state.poules[l]||[]).forEach(t=> assign[t.id] = l);
+    });
+  }
+  state.teams.forEach((t,i)=>{
+    if(!assign[t.id]) assign[t.id] = letters[i % letters.length];
+  });
+  const rows = state.teams.map(t=>`
+    <div class="p-match-wrap" style="align-items:center;">
+      <span class="pm-name" style="flex:1;">${escapeHtml(t.name)}</span>
+      <select class="manual-poule-select" data-team="${t.id}" style="width:auto;min-width:90px;">
+        ${letters.map(l=>`<option value="${l}" ${assign[t.id]===l?'selected':''}>Poule ${l}</option>`).join('')}
+      </select>
+    </div>`).join('');
+  editor.innerHTML = `
+    <div class="panel" style="margin-top:16px;padding:18px;">
+      <div class="section-label">Répartition manuelle des équipes</div>
+      <div class="meta-line" style="color:rgba(246,244,236,0.65);margin-bottom:12px;">
+        Choisissez la poule de chaque équipe, puis validez.
+      </div>
+      ${rows}
+      <div class="row-actions">
+        <button class="ghost" id="manual-cancel">Annuler</button>
+        <button class="primary" id="manual-validate">✓ Valider la répartition</button>
+      </div>
+    </div>`;
+  document.getElementById('manual-cancel').onclick = ()=>{
+    editor.style.display = 'none';
+  };
+  document.getElementById('manual-validate').onclick = ()=> validateManualPoules();
+}
+function validateManualPoules(){
+  const letters = 'ABCDEFGH'.split('').slice(0, state.nbPoules);
+  const poules = {}; letters.forEach(l=> poules[l] = []);
+  document.querySelectorAll('.manual-poule-select').forEach(sel=>{
+    const team = state.teams.find(t=>t.id===sel.dataset.team);
+    if(team) poules[sel.value].push(team);
+  });
+  const emptyPoule = letters.find(l=> poules[l].length===0);
+  if(emptyPoule){
+    alert(`La poule ${emptyPoule} n'a aucune équipe. Ajustez la répartition avant de valider.`);
+    return;
+  }
+  state.poules = poules;
+  const pouleMatches = {};
+  letters.forEach(l=>{ pouleMatches[l] = buildCalendar(poules[l]); });
+  state.pouleMatches = pouleMatches;
+  state.finalPhase = (state.nbPoules === 2)
+    ? { demi1WinnerId:null, demi2WinnerId:null, finalWinnerId:null,
+        demi1Date:'', demi2Date:'', finalDate:'',
+        demi1Heure:'', demi2Heure:'', finalHeure:'',
+        demi1Lieu:'', demi2Lieu:'', finalLieu:'' }
+    : null;
+  document.getElementById('manual-poules-editor').style.display = 'none';
+  renderPoulesResult();
 }
 
 // Circle-method round robin: generates journées (matchdays), then assigns
