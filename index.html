@@ -517,6 +517,9 @@
           <option value="prestige">Prestige Or &amp; Noir</option>
           <option value="vert-national">Vert National</option>
           <option value="finale-trophee">Grande Finale (trophée)</option>
+          <option value="vert-sport">Sport Club (vert diagonal)</option>
+          <option value="nuit-terrain">Nuit &amp; Terrain</option>
+          <option value="stade-neon">Stade Néon (VS blindés)</option>
         </select>
       </div>
       <div class="field">
@@ -647,16 +650,25 @@ function loadJsPdf(){
 // (anciens Android notamment). Utilisé par les nouveaux modèles d'affiche.
 if(typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect){
   CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r){
-    if(typeof r === 'number') r = { tl:r, tr:r, br:r, bl:r };
-    this.moveTo(x + r.tl, y);
-    this.lineTo(x + w - r.tr, y);
-    this.arcTo(x + w, y, x + w, y + r.tr, r.tr);
-    this.lineTo(x + w, y + h - r.br);
-    this.arcTo(x + w, y + h, x + w - r.br, y + h, r.br);
-    this.lineTo(x + r.bl, y + h);
-    this.arcTo(x, y + h, x, y + h - r.bl, r.bl);
-    this.lineTo(x, y + r.tl);
-    this.arcTo(x, y, x + r.tl, y, r.tl);
+    let tl, tr, br, bl;
+    if(typeof r === 'number'){ tl = tr = br = bl = r; }
+    else if(Array.isArray(r)){
+      if(r.length===1){ tl=tr=br=bl=r[0]; }
+      else if(r.length===2){ tl=br=r[0]; tr=bl=r[1]; }
+      else if(r.length===3){ tl=r[0]; tr=bl=r[1]; br=r[2]; }
+      else { tl=r[0]; tr=r[1]; br=r[2]; bl=r[3]; }
+    } else if(r && typeof r === 'object'){
+      tl = r.tl||0; tr = r.tr||0; br = r.br||0; bl = r.bl||0;
+    } else { tl=tr=br=bl=0; }
+    this.moveTo(x + tl, y);
+    this.lineTo(x + w - tr, y);
+    this.arcTo(x + w, y, x + w, y + tr, tr);
+    this.lineTo(x + w, y + h - br);
+    this.arcTo(x + w, y + h, x + w - br, y + h, br);
+    this.lineTo(x + bl, y + h);
+    this.arcTo(x, y + h, x, y + h - bl, bl);
+    this.lineTo(x, y + tl);
+    this.arcTo(x, y, x + tl, y, tl);
     return this;
   };
 }
@@ -2125,6 +2137,9 @@ async function generatePoster(){
   if(template === 'prestige') await drawPrestige(ctxData);
   else if(template === 'vert-national') await drawVertNational(ctxData);
   else if(template === 'finale-trophee') await drawFinaleTrophee(ctxData);
+  else if(template === 'vert-sport') await drawVertSport(ctxData);
+  else if(template === 'nuit-terrain') await drawNuitTerrain(ctxData);
+  else if(template === 'stade-neon') await drawStadeNeon(ctxData);
   else await drawNocturne(ctxData);
 
   finalizePoster(canvas, teamA, teamB, { matchType, date, heure, lieu, structure, template,
@@ -2660,6 +2675,242 @@ async function drawFinaleTrophee({ ctx, W, H, S, teamA, teamB, imgA, imgB, match
   ctx.fillText('Le Football, Une Passion, Unité Notre Force', W/2, barY+94*S);
 
   return drawSponsorBand(ctx, W, barBottom, sponsorBandH, S, '#F2C744', '#F6F4EC');
+}
+
+// ---------- Modèle « Sport Club (vert diagonal) » ----------
+function drawVertSport({ ctx, W, H, S, teamA, teamB, imgA, imgB, matchType, heure, lieu, date, structure, parrain, parrainImg, entree, loge }){
+  ctx.fillStyle = '#F6F4EC'; ctx.fillRect(0,0,W,H);
+
+  // ---- petits accents en triangle (haut gauche / haut droite) ----
+  ctx.save();
+  ctx.fillStyle = '#12963F';
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(46*S,0); ctx.lineTo(0,30*S); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#F2A93B';
+  ctx.beginPath(); ctx.moveTo(W,H*0.06); ctx.lineTo(W-30*S,H*0.06-14*S); ctx.lineTo(W-30*S,H*0.06+14*S); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(W,H*0.10); ctx.lineTo(W-22*S,H*0.10-10*S); ctx.lineTo(W-22*S,H*0.10+10*S); ctx.closePath(); ctx.fill();
+  ctx.restore();
+
+  // ---- bandeau club en haut ----
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#12963F'; ctx.font = `700 ${18*S}px Oswald, sans-serif`;
+  ctx.fillText((structure || 'VOTRE CLUB SPORTIF').toUpperCase(), 34*S, 46*S);
+  ctx.strokeStyle = '#12963F'; ctx.lineWidth = 2*S;
+  ctx.beginPath(); ctx.moveTo(34*S,56*S); ctx.lineTo(200*S,56*S); ctx.stroke();
+
+  // ---- cadre photo (parrain / invité, ou emplacement libre) ----
+  const frameX = W*0.08, frameY = H*0.10, frameW = W*0.84, frameH = H*0.36;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(frameX, frameY, frameW, frameH); ctx.clip();
+  if(parrainImg){
+    const scale = Math.max(frameW/parrainImg.width, frameH/parrainImg.height);
+    const dw = parrainImg.width*scale, dh = parrainImg.height*scale;
+    ctx.drawImage(parrainImg, frameX+frameW/2-dw/2, frameY+frameH/2-dh/2, dw, dh);
+    ctx.fillStyle = 'rgba(12,43,23,0.28)'; ctx.fillRect(frameX,frameY,frameW,frameH);
+  } else {
+    ctx.fillStyle = 'rgba(18,150,63,0.06)'; ctx.fillRect(frameX,frameY,frameW,frameH);
+  }
+  ctx.restore();
+  ctx.save();
+  ctx.setLineDash([10*S,8*S]);
+  ctx.strokeStyle = '#12963F'; ctx.lineWidth = 2*S;
+  ctx.strokeRect(frameX, frameY, frameW, frameH);
+  ctx.restore();
+  if(!parrainImg){
+    ctx.textAlign = 'center';
+    ctx.font = `${44*S}px sans-serif`;
+    ctx.fillStyle = 'rgba(18,150,63,0.55)';
+    ctx.fillText('\ud83d\udcf7', frameX+frameW/2, frameY+frameH/2);
+    ctx.font = `700 ${13*S}px "JetBrains Mono", monospace`;
+    ctx.fillText('EMPLACEMENT PHOTO', frameX+frameW/2, frameY+frameH/2+34*S);
+  } else if(parrain){
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#F6F4EC'; ctx.font = `700 ${15*S}px Oswald, sans-serif`;
+    ctx.fillText(parrain.toUpperCase(), frameX+16*S, frameY+frameH-16*S);
+  }
+
+  // ---- bandes diagonales vertes (bas de l'affiche) ----
+  const bandTop = frameY+frameH-6*S;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(0, bandTop+10*S); ctx.lineTo(W, bandTop-16*S); ctx.lineTo(W, bandTop+16*S); ctx.lineTo(0, bandTop+42*S); ctx.closePath();
+  ctx.fillStyle = '#0E7A3C'; ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(0, bandTop+30*S); ctx.lineTo(W, bandTop+4*S); ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+  ctx.fillStyle = '#12963F'; ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(0, bandTop+38*S); ctx.lineTo(W, bandTop+12*S); ctx.lineTo(W, bandTop+22*S); ctx.lineTo(0, bandTop+48*S); ctx.closePath();
+  ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fill();
+  ctx.restore();
+
+  // ---- ballon décoratif ----
+  ctx.textAlign = 'center';
+  ctx.font = `${120*S}px sans-serif`;
+  ctx.fillText('\u26bd', W*0.22, bandTop+150*S);
+
+  // ---- titre & infos match ----
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#0c2b17'; ctx.font = `400 ${40*S}px Anton, sans-serif`;
+  wrapCanvasText(ctx, matchType.toUpperCase(), W*0.42, bandTop+90*S, W*0.52, 42*S);
+  ctx.fillStyle = '#F6F4EC'; ctx.font = `700 ${19*S}px Oswald, sans-serif`;
+  wrapCanvasText(ctx, `${teamA.name.toUpperCase()}  vs  ${teamB.name.toUpperCase()}`, W*0.42, bandTop+150*S, W*0.52, 23*S);
+
+  ctx.fillStyle = '#F6F4EC'; ctx.font = `700 ${17*S}px Oswald, sans-serif`;
+  wrapCanvasText(ctx, `${(date||'\u2014').toUpperCase()}  \u2022  ${(heure||'\u2014')}`, W*0.42, bandTop+186*S, W*0.5, 21*S);
+  ctx.font = `400 ${14*S}px "JetBrains Mono", monospace`;
+  wrapCanvasText(ctx, (lieu||'\u2014').toUpperCase(), W*0.42, bandTop+212*S, W*0.5, 17*S);
+
+  // ---- ruban jaune "coup d'envoi" ----
+  const ribbonY = Math.min(bandTop+254*S, H*0.86);
+  ctx.fillStyle = '#F5C518';
+  ctx.beginPath(); ctx.roundRect(0, ribbonY, W*0.5, 42*S, [0,21*S,21*S,0]); ctx.fill();
+  ctx.fillStyle = '#0c2b17'; ctx.textAlign='left'; ctx.font = `700 ${16*S}px Oswald, sans-serif`;
+  ctx.fillText("\u26a1  PR\u00caTS POUR LE COUP D'ENVOI !", 20*S, ribbonY+27*S);
+
+  const sponsorBandH = 90*S, barBottom = H - sponsorBandH;
+  return drawSponsorBand(ctx, W, barBottom, sponsorBandH, S, '#12963F', 'rgba(12,43,23,0.6)');
+}
+
+// ---------- Modèle « Nuit & Terrain » ----------
+function drawNuitTerrain({ ctx, W, H, S, teamA, teamB, imgA, imgB, matchType, heure, lieu, date, structure, parrain, parrainImg }){
+  ctx.fillStyle = '#05070a'; ctx.fillRect(0,0,W,H);
+  const glow = ctx.createRadialGradient(W/2,H*0.18,10,W/2,H*0.18,W*0.6);
+  glow.addColorStop(0,'rgba(120,255,150,0.18)'); glow.addColorStop(1,'rgba(5,7,10,0)');
+  ctx.fillStyle = glow; ctx.fillRect(0,0,W,H*0.5);
+
+  // logos équipes en haut
+  ctx.textAlign = 'center';
+  const crestY = H*0.16, crestR = 52*S;
+  function crest(x,img,team){
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x, crestY, crestR, 0, Math.PI*2); ctx.closePath();
+    ctx.fillStyle = '#111'; ctx.fill();
+    ctx.lineWidth = 3*S; ctx.strokeStyle = '#7CF29A'; ctx.stroke();
+    ctx.clip();
+    if(img) ctx.drawImage(img, x-crestR, crestY-crestR, crestR*2, crestR*2);
+    else { ctx.fillStyle='#fff'; ctx.font=`700 ${26*S}px monospace`; ctx.textBaseline='middle'; ctx.fillText(team.name.slice(0,2).toUpperCase(), x, crestY+4*S); ctx.textBaseline='alphabetic'; }
+    ctx.restore();
+  }
+  crest(W*0.3, imgA, teamA); crest(W*0.7, imgB, teamB);
+  ctx.fillStyle = '#7CF29A'; ctx.font = `400 ${30*S}px Anton, sans-serif`;
+  ctx.fillText('VS', W/2, crestY+10*S);
+
+  // arc blanc séparateur ciel/pelouse
+  const curveY = H*0.40;
+  ctx.fillStyle = '#F6F4EC';
+  ctx.beginPath();
+  ctx.moveTo(0, curveY+40*S);
+  ctx.quadraticCurveTo(W/2, curveY-30*S, W, curveY+40*S);
+  ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath(); ctx.fill();
+
+  // pelouse
+  const grassGrad = ctx.createLinearGradient(0,curveY,0,H);
+  grassGrad.addColorStop(0,'#1E9D45'); grassGrad.addColorStop(1,'#0B5A26');
+  ctx.fillStyle = grassGrad;
+  ctx.beginPath();
+  ctx.moveTo(0, curveY+52*S);
+  ctx.quadraticCurveTo(W/2, curveY-18*S, W, curveY+52*S);
+  ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath(); ctx.fill();
+
+  // titre encadré
+  ctx.textAlign = 'center';
+  ctx.font = `400 ${52*S}px Anton, sans-serif`;
+  ctx.fillStyle = '#0c2b17';
+  wrapCanvasText(ctx, matchType.toUpperCase(), W/2, curveY+140*S, W*0.8, 56*S);
+
+  ctx.fillStyle = '#F6F4EC'; ctx.font = `700 ${20*S}px Oswald, sans-serif`;
+  ctx.fillText(`${teamA.name.toUpperCase()}  •  ${teamB.name.toUpperCase()}`, W/2, curveY+230*S);
+
+  ctx.font = `700 ${17*S}px "JetBrains Mono", monospace`;
+  ctx.fillText((date||'—').toUpperCase(), W/2, curveY+266*S);
+  ctx.fillText((heure||'—'), W/2, curveY+292*S);
+  ctx.font = `400 ${14*S}px "JetBrains Mono", monospace`;
+  wrapCanvasText(ctx, lieu||'—', W/2, curveY+318*S, W*0.7, 18*S);
+
+  if(parrain){
+    ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = `700 ${13*S}px "JetBrains Mono", monospace`;
+    ctx.fillText('PARRAIN : ' + parrain.toUpperCase(), W/2, curveY+350*S);
+  }
+
+  const sponsorBandH = 100*S, barBottom = H - sponsorBandH;
+  return drawSponsorBand(ctx, W, barBottom, sponsorBandH, S, 'rgba(124,242,154,0.4)', 'rgba(246,244,236,0.6)');
+}
+
+// ---------- Modèle « Stade Néon (blasons VS) » ----------
+function drawStadeNeon({ ctx, W, H, S, teamA, teamB, imgA, imgB, matchType, heure, lieu, date, structure, parrain, parrainImg }){
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'#0b1b33'); grad.addColorStop(0.55,'#123a5e'); grad.addColorStop(1,'#0a1f33');
+  ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
+
+  // faisceaux néon en croix
+  ctx.save();
+  ctx.strokeStyle = 'rgba(87,220,255,0.55)'; ctx.lineWidth = 3*S;
+  ctx.shadowColor = 'rgba(87,220,255,0.8)'; ctx.shadowBlur = 14*S;
+  [[0,H*0.5,W,0],[W,H*0.5,0,0],[0,H*0.85,W,H*0.35],[W,H*0.85,0,H*0.35]].forEach(([x1,y1,x2,y2])=>{
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  });
+  ctx.restore();
+
+  // badge LIVE
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.beginPath(); ctx.roundRect(W-96*S, 24*S, 66*S, 26*S, 13*S); ctx.fill();
+  ctx.fillStyle = '#ff4d4d'; ctx.beginPath(); ctx.arc(W-78*S, 37*S, 5*S, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = `700 ${13*S}px "JetBrains Mono", monospace`; ctx.textAlign='left';
+  ctx.fillText('LIVE', W-68*S, 41*S);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = `700 ${14*S}px "JetBrains Mono", monospace`;
+  ctx.fillText((structure || 'STADE').toUpperCase(), W/2, 40*S);
+
+  ctx.fillStyle = '#F6F4EC'; ctx.font = `400 ${52*S}px Anton, sans-serif`;
+  wrapCanvasText(ctx, matchType.toUpperCase(), W/2, 108*S, W*0.86, 54*S);
+
+  // blasons en écu + VS
+  const shieldY = H*0.42, shieldW = 130*S, shieldH = 150*S, leftX = W*0.27, rightX = W*0.73;
+  function shield(x, img, team, color){
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x-shieldW/2, shieldY-shieldH/2);
+    ctx.lineTo(x+shieldW/2, shieldY-shieldH/2);
+    ctx.lineTo(x+shieldW/2, shieldY+shieldH*0.08);
+    ctx.quadraticCurveTo(x+shieldW/2, shieldY+shieldH*0.42, x, shieldY+shieldH/2);
+    ctx.quadraticCurveTo(x-shieldW/2, shieldY+shieldH*0.42, x-shieldW/2, shieldY+shieldH*0.08);
+    ctx.closePath();
+    ctx.fillStyle = color; ctx.fill();
+    ctx.lineWidth = 3*S; ctx.strokeStyle = '#57DCFF'; ctx.stroke();
+    ctx.clip();
+    if(img) ctx.drawImage(img, x-shieldW/2, shieldY-shieldH/2, shieldW, shieldH);
+    else { ctx.fillStyle='#fff'; ctx.font=`700 ${34*S}px monospace`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(team.name.slice(0,2).toUpperCase(), x, shieldY+4*S); ctx.textBaseline='alphabetic'; }
+    ctx.restore();
+
+    ctx.textAlign='center';
+    ctx.fillStyle = '#0b1b33';
+    const tw = Math.min(shieldW+10*S, 150*S);
+    ctx.fillRect(x-tw/2, shieldY+shieldH/2-6*S, tw, 26*S);
+    ctx.fillStyle = '#F6F4EC'; ctx.font = `700 ${13*S}px Oswald, sans-serif`;
+    wrapCanvasText(ctx, team.name.toUpperCase(), x, shieldY+shieldH/2+12*S, tw-8*S, 14*S);
+  }
+  shield(leftX, imgA, teamA, '#123a5e'); shield(rightX, imgB, teamB, '#123a5e');
+
+  ctx.fillStyle = '#F6F4EC'; ctx.font = `400 ${40*S}px Anton, sans-serif`; ctx.textAlign='center';
+  ctx.fillText('VS', W/2, shieldY+10*S);
+
+  const barY = H*0.72, sponsorBandH = 100*S, barBottom = H - sponsorBandH;
+  ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.fillRect(0, barY, W, barBottom-barY);
+  ctx.fillStyle = '#F6F4EC'; ctx.font = `700 ${24*S}px Oswald, sans-serif`;
+  ctx.fillText((date||'—').toUpperCase(), W/2, barY+40*S);
+  ctx.font = `700 ${22*S}px Oswald, sans-serif`;
+  ctx.fillText(heure||'—', W/2, barY+68*S);
+  ctx.font = `400 ${15*S}px "JetBrains Mono", monospace`;
+  ctx.fillStyle = 'rgba(246,244,236,0.7)';
+  wrapCanvasText(ctx, lieu||'—', W/2, barY+92*S, W*0.8, 18*S);
+
+  if(parrain){
+    ctx.fillStyle = '#57DCFF'; ctx.font = `700 ${13*S}px "JetBrains Mono", monospace`;
+    ctx.fillText('PARRAIN : ' + parrain.toUpperCase(), W/2, barY+112*S);
+  }
+
+  return drawSponsorBand(ctx, W, barBottom, sponsorBandH, S, '#57DCFF', 'rgba(246,244,236,0.6)');
 }
 
 // ---------- Bandeau sponsor partagé entre les modèles ----------
