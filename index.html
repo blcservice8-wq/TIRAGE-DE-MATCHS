@@ -450,6 +450,7 @@
   }
   .poster-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
   .poster-form .field{margin-bottom:0;}
+  .poster-form .field[data-tpl-field].tpl-hidden{display:none;}
   .poster-canvas-wrap{
     background:rgba(0,0,0,0.2);border:1px solid var(--line);border-radius:10px;
     padding:10px;display:flex;justify-content:center;margin-bottom:14px;
@@ -510,6 +511,15 @@
     </div>
     <div class="poster-form">
       <div class="field">
+        <label for="poster-template">Modèle d'affiche</label>
+        <select id="poster-template">
+          <option value="nocturne">Stade Nocturne (bleu)</option>
+          <option value="prestige">Prestige Or &amp; Noir</option>
+          <option value="vert-national">Vert National</option>
+          <option value="finale-trophee">Grande Finale (trophée)</option>
+        </select>
+      </div>
+      <div class="field">
         <label for="poster-format">Format de l'affiche</label>
         <select id="poster-format">
           <option value="square">Carré — 1080 × 1080 (post)</option>
@@ -560,6 +570,38 @@
         <input id="poster-structure" type="text" placeholder="Nom de la structure">
       </div>
       <div class="field">
+        <label for="poster-parrain">Parrain / Invité d'honneur (optionnel)</label>
+        <input id="poster-parrain" type="text" placeholder="Ex : M. Ousmane Niang">
+      </div>
+      <div class="field">
+        <label for="poster-parrain-photo">Photo du parrain / invité (optionnel)</label>
+        <input id="poster-parrain-photo" type="file" accept="image/*">
+      </div>
+      <div class="field" data-tpl-field="nocturne,prestige,vert-national">
+        <label for="poster-label1">Libellé horaire 1 (optionnel)</label>
+        <input id="poster-label1" type="text" placeholder="Ex : CADET">
+      </div>
+      <div class="field" data-tpl-field="nocturne,prestige,vert-national">
+        <label for="poster-heure1">Heure 1</label>
+        <input id="poster-heure1" class="time-text" type="text" placeholder="hh:mm" maxlength="5" inputmode="numeric">
+      </div>
+      <div class="field" data-tpl-field="nocturne,prestige,vert-national">
+        <label for="poster-label2">Libellé horaire 2 (optionnel)</label>
+        <input id="poster-label2" type="text" placeholder="Ex : SENIOR">
+      </div>
+      <div class="field" data-tpl-field="nocturne,prestige,vert-national">
+        <label for="poster-heure2">Heure 2</label>
+        <input id="poster-heure2" class="time-text" type="text" placeholder="hh:mm" maxlength="5" inputmode="numeric">
+      </div>
+      <div class="field" data-tpl-field="finale-trophee">
+        <label for="poster-entree">Prix entrée (optionnel)</label>
+        <input id="poster-entree" type="text" placeholder="Ex : 500F">
+      </div>
+      <div class="field" data-tpl-field="finale-trophee">
+        <label for="poster-loge">Prix loge (optionnel)</label>
+        <input id="poster-loge" type="text" placeholder="Ex : 1.000F">
+      </div>
+      <div class="field">
         <label for="poster-sponsor">Logo sponsor (optionnel)</label>
         <input id="poster-sponsor" type="file" accept="image/*">
       </div>
@@ -570,6 +612,7 @@
     <div class="row-actions">
       <button class="primary" id="poster-generate">🎨 Générer l'affiche</button>
       <button class="ghost" id="poster-download" style="display:none;">⬇ Télécharger (PNG)</button>
+      <button class="ghost" id="poster-download-pdf" style="display:none;">⬇ Télécharger (PDF)</button>
       <button class="ghost" id="poster-save-archive" style="display:none;">💾 Enregistrer dans mes affiches</button>
     </div>
     <div class="poster-archive">
@@ -581,6 +624,42 @@
 
 <script>
 const STORAGE_KEY = 'tirage_de_poule_v1';
+
+// jsPDF n'est chargé qu'à la demande (clic sur "Télécharger PDF") : l'app
+// reste 100% utilisable hors-ligne pour tout le reste (tirage, poules,
+// grille, affiches PNG...). On met en cache la promesse pour ne charger
+// le script qu'une seule fois.
+let jsPdfLoadPromise = null;
+function loadJsPdf(){
+  if(window.jspdf) return Promise.resolve(window.jspdf);
+  if(jsPdfLoadPromise) return jsPdfLoadPromise;
+  jsPdfLoadPromise = new Promise((resolve, reject)=>{
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload = ()=> resolve(window.jspdf);
+    s.onerror = ()=>{ jsPdfLoadPromise = null; reject(new Error('jsPDF indisponible')); };
+    document.head.appendChild(s);
+  });
+  return jsPdfLoadPromise;
+}
+
+// Polyfill : ctx.roundRect() n'existe pas sur tous les navigateurs/webviews
+// (anciens Android notamment). Utilisé par les nouveaux modèles d'affiche.
+if(typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r){
+    if(typeof r === 'number') r = { tl:r, tr:r, br:r, bl:r };
+    this.moveTo(x + r.tl, y);
+    this.lineTo(x + w - r.tr, y);
+    this.arcTo(x + w, y, x + w, y + r.tr, r.tr);
+    this.lineTo(x + w, y + h - r.br);
+    this.arcTo(x + w, y + h, x + w - r.br, y + h, r.br);
+    this.lineTo(x + r.bl, y + h);
+    this.arcTo(x, y + h, x, y + h - r.bl, r.bl);
+    this.lineTo(x, y + r.tl);
+    this.arcTo(x, y, x + r.tl, y, r.tl);
+    return this;
+  };
+}
 
 let state = {
   step: 0,
@@ -647,7 +726,7 @@ function save(){
     console.warn('Sauvegarde locale impossible (pleine ?) :', e);
     try{
       const lightSnapshot = snapshotState();
-      lightSnapshot.posters = (lightSnapshot.posters || []).map(p=>({ ...p, dataUrl: null, thumbnailOnly: true }));
+      lightSnapshot.posters = (lightSnapshot.posters || []).map(p=>({ ...p, dataUrl: null, sponsorDataUrl: null, parrainPhotoDataUrl: null, thumbnailOnly: true }));
       localStorage.setItem(STORAGE_KEY, JSON.stringify(lightSnapshot));
       showSaveIndicator(false, '⚠ Espace insuffisant : affiches non sauvegardées');
       return false;
@@ -1396,6 +1475,12 @@ function attachHandlers(){
 }
 
 function runTirage(){
+  if(state.nbPoules > state.teams.length){
+    alert(`Il faut au moins ${state.nbPoules} équipe(s) pour former ${state.nbPoules} poule(s). Réduisez le nombre de poules ou ajoutez des équipes.`);
+    return;
+  }
+  const manualEditor = document.getElementById('manual-poules-editor');
+  if(manualEditor) manualEditor.style.display = 'none';
   const teams = shuffle(state.teams);
   const letters = 'ABCDEFGH'.split('').slice(0, state.nbPoules);
   const poules = {}; letters.forEach(l=> poules[l] = []);
@@ -1432,6 +1517,10 @@ function runTirage(){
 
 // ---------- Édition manuelle des poules ----------
 function openManualEditor(){
+  if(state.nbPoules > state.teams.length){
+    alert(`Il faut au moins ${state.nbPoules} équipe(s) pour former ${state.nbPoules} poule(s). Réduisez le nombre de poules ou ajoutez des équipes.`);
+    return;
+  }
   const editor = document.getElementById('manual-poules-editor');
   if(!editor) return;
   editor.style.display = editor.style.display==='none' ? '' : 'none';
@@ -1827,6 +1916,7 @@ document.addEventListener('input', function(e){
 
 // ---- Affiche de la rencontre du jour ----
 let posterSponsorDataUrl = null;
+let posterParrainPhotoDataUrl = null;
 let posterLastFocusedEl = null;
 
 function openPosterModal(){
@@ -1843,16 +1933,36 @@ function openPosterModal(){
   document.getElementById('poster-type').value = 'MATCH DE POULE';
   document.getElementById('poster-structure').value = state.config.responsable || '';
   document.getElementById('poster-date').value = state.config.date || '';
+  document.getElementById('poster-template').value = 'nocturne';
+  document.getElementById('poster-parrain').value = '';
+  posterParrainPhotoDataUrl = null;
+  document.getElementById('poster-parrain-photo').value = '';
+  document.getElementById('poster-label1').value = 'CADET';
+  document.getElementById('poster-heure1').value = '';
+  document.getElementById('poster-label2').value = 'SENIOR';
+  document.getElementById('poster-heure2').value = '';
+  document.getElementById('poster-entree').value = '';
+  document.getElementById('poster-loge').value = '';
+  toggleTemplateFields();
   populateMatchPicker();
   posterSponsorDataUrl = null;
   document.getElementById('poster-sponsor').value = '';
   document.getElementById('poster-download').style.display = 'none';
+  document.getElementById('poster-download-pdf').style.display = 'none';
   document.getElementById('poster-save-archive').style.display = 'none';
   renderPosterArchive();
   posterLastFocusedEl = document.activeElement;
   document.getElementById('poster-overlay').classList.add('open');
   document.getElementById('poster-close').focus();
 }
+function toggleTemplateFields(){
+  const tpl = document.getElementById('poster-template').value;
+  document.querySelectorAll('[data-tpl-field]').forEach(el=>{
+    const list = el.dataset.tplField.split(',');
+    el.classList.toggle('tpl-hidden', !list.includes(tpl));
+  });
+}
+document.getElementById('poster-template').addEventListener('change', toggleTemplateFields);
 function closePosterModal(){
   document.getElementById('poster-overlay').classList.remove('open');
   if(posterLastFocusedEl && typeof posterLastFocusedEl.focus === 'function'){
@@ -1986,6 +2096,14 @@ async function generatePoster(){
   const lieu = document.getElementById('poster-lieu').value;
   const date = document.getElementById('poster-date').value;
   const structure = document.getElementById('poster-structure').value;
+  const parrain = document.getElementById('poster-parrain').value;
+  const label1 = document.getElementById('poster-label1').value || 'CADET';
+  const heure1 = document.getElementById('poster-heure1').value;
+  const label2 = document.getElementById('poster-label2').value || 'SENIOR';
+  const heure2 = document.getElementById('poster-heure2').value;
+  const entree = document.getElementById('poster-entree').value;
+  const loge = document.getElementById('poster-loge').value;
+  const template = document.getElementById('poster-template').value || 'nocturne';
 
   const formatKey = document.getElementById('poster-format').value || 'portrait';
   const format = POSTER_FORMATS[formatKey] || POSTER_FORMATS.portrait;
@@ -1998,6 +2116,22 @@ async function generatePoster(){
 
   if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
 
+  const [imgA, imgB, parrainImg] = await Promise.all([
+    loadImageAsync(teamA.logo), loadImageAsync(teamB.logo), loadImageAsync(posterParrainPhotoDataUrl)
+  ]);
+  const ctxData = { ctx, W, H, S, teamA, teamB, imgA, imgB, matchType, heure, lieu, date, structure,
+    parrain, parrainImg, label1, heure1, label2, heure2, entree, loge };
+
+  if(template === 'prestige') await drawPrestige(ctxData);
+  else if(template === 'vert-national') await drawVertNational(ctxData);
+  else if(template === 'finale-trophee') await drawFinaleTrophee(ctxData);
+  else await drawNocturne(ctxData);
+
+  finalizePoster(canvas, teamA, teamB, { matchType, date, heure, lieu, structure, template,
+    parrain, parrainPhotoDataUrl: posterParrainPhotoDataUrl, label1, heure1, label2, heure2, entree, loge });
+}
+
+async function drawNocturne({ ctx, W, H, S, teamA, teamB, imgA, imgB, matchType, heure, lieu, date, structure, parrain, parrainImg, label1, heure1, label2, heure2 }){
   // ---- fond : ciel de nuit dégradé ----
   const grad = ctx.createLinearGradient(0,0,W*0.3,H);
   grad.addColorStop(0,'#2E76A8');
@@ -2106,7 +2240,6 @@ async function generatePoster(){
   ctx.fillText(eyebrow, W/2, 230*S);
 
   // team logos / initials
-  const [imgA, imgB] = await Promise.all([loadImageAsync(teamA.logo), loadImageAsync(teamB.logo)]);
   const circleY = H*0.40;
   const circleR = 95*S;
   const leftX = W*0.27, rightX = W*0.73;
@@ -2150,10 +2283,38 @@ async function generatePoster(){
   // ---- message fair-play ----
   ctx.fillStyle = '#57C2F0';
   ctx.font = `italic 700 ${20*S}px Oswald, sans-serif`;
-  ctx.fillText('★ QUE LE MEILLEUR GAGNE DANS LE FAIR-PLAY ★', W/2, H*0.735);
+  ctx.fillText('★ QUE LE MEILLEUR GAGNE DANS LE FAIR-PLAY ★', W/2, H*0.72);
+
+  // ---- bandeau parrain (optionnel) ----
+  let parrainBandBottom = H*0.735;
+  if(parrain){
+    const bandH = parrainImg ? 74*S : 40*S;
+    const bandY = H*0.735;
+    ctx.fillStyle = 'rgba(87,194,240,0.10)';
+    ctx.fillRect(W*0.12, bandY, W*0.76, bandH);
+    ctx.strokeStyle = '#57C2F0'; ctx.lineWidth = 1.5*S;
+    ctx.strokeRect(W*0.12, bandY, W*0.76, bandH);
+    ctx.textAlign = 'center';
+    if(parrainImg){
+      const r = 26*S, cx = W/2, cy = bandY+r+8*S;
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.closePath();
+      ctx.strokeStyle = '#57C2F0'; ctx.lineWidth = 3*S; ctx.stroke(); ctx.clip();
+      ctx.drawImage(parrainImg, cx-r, cy-r, r*2, r*2);
+      ctx.restore();
+      ctx.fillStyle = '#EAF6FF'; ctx.font = `700 ${16*S}px Oswald, sans-serif`;
+      ctx.fillText(parrain.toUpperCase(), W/2, bandY+bandH-8*S);
+    } else {
+      ctx.fillStyle = '#57C2F0'; ctx.font = `700 ${12*S}px "JetBrains Mono", monospace`;
+      ctx.fillText('PARRAIN', W/2, bandY+16*S);
+      ctx.fillStyle = '#EAF6FF'; ctx.font = `700 ${16*S}px Oswald, sans-serif`;
+      ctx.fillText(parrain.toUpperCase(), W/2, bandY+34*S);
+    }
+    parrainBandBottom = bandY + bandH + 8*S;
+  }
 
   // ---- bandeau date / heure / lieu ----
-  const barY = H*0.775;
+  const barY = Math.max(H*0.775, parrainBandBottom);
   const sponsorBandH = 110*S;
   const barBottom = H - sponsorBandH;
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -2163,24 +2324,354 @@ async function generatePoster(){
   ctx.beginPath(); ctx.moveTo(0,barY); ctx.lineTo(W,barY); ctx.stroke();
 
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#57C2F0';
-  ctx.font = `700 ${16*S}px "JetBrains Mono", monospace`;
-  ctx.fillText('DATE & HEURE', W*0.27, barY+48*S);
-  ctx.fillText('LIEU', W*0.73, barY+48*S);
+  if(heure1 || heure2){
+    ctx.fillStyle = '#57C2F0';
+    ctx.font = `700 ${15*S}px "JetBrains Mono", monospace`;
+    ctx.fillText((label1||'CADET').toUpperCase(), W*0.27, barY+40*S);
+    ctx.fillText((label2||'SENIOR').toUpperCase(), W*0.73, barY+40*S);
+    ctx.fillStyle = '#EAF6FF';
+    ctx.font = `400 ${30*S}px Anton, sans-serif`;
+    ctx.fillText((heure1||'—')+'H', W*0.27, barY+78*S);
+    ctx.fillText((heure2||'—')+'H', W*0.73, barY+78*S);
+    ctx.font = `400 ${14*S}px "JetBrains Mono", monospace`;
+    ctx.fillStyle = 'rgba(234,246,255,0.6)';
+    wrapCanvasText(ctx, `${date||'—'} • ${lieu||'—'}`, W/2, barY+100*S, W*0.7, 18*S);
+  } else {
+    ctx.fillStyle = '#57C2F0';
+    ctx.font = `700 ${16*S}px "JetBrains Mono", monospace`;
+    ctx.fillText('DATE & HEURE', W*0.27, barY+48*S);
+    ctx.fillText('LIEU', W*0.73, barY+48*S);
 
-  ctx.fillStyle = '#EAF6FF';
-  ctx.font = `400 ${28*S}px Oswald, sans-serif`;
-  wrapCanvasText(ctx, `${date || '—'}  •  ${heure || '—'}`, W*0.27, barY+86*S, 260*S, 32*S);
-  wrapCanvasText(ctx, lieu || '—', W*0.73, barY+86*S, 260*S, 32*S);
+    ctx.fillStyle = '#EAF6FF';
+    ctx.font = `400 ${28*S}px Oswald, sans-serif`;
+    wrapCanvasText(ctx, `${date || '—'}  •  ${heure || '—'}`, W*0.27, barY+86*S, 260*S, 32*S);
+    wrapCanvasText(ctx, lieu || '—', W*0.73, barY+86*S, 260*S, 32*S);
+  }
 
   // ---- bandeau sponsor (bas de l'affiche) ----
+  await drawSponsorBand(ctx, W, barBottom, sponsorBandH, S, 'rgba(87,194,240,0.4)', 'rgba(234,246,255,0.5)');
+}
+
+// ---------- Modèle « Prestige Or & Noir » ----------
+function drawPrestige({ ctx, W, H, S, teamA, teamB, imgA, imgB, matchType, heure, lieu, date, structure, parrain, parrainImg, label1, heure1, label2, heure2 }){
+  const gold = '#D8B04A', goldLight = '#F3DFA0';
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'#1a1a1a'); grad.addColorStop(0.5,'#0c0c0c'); grad.addColorStop(1,'#000000');
+  ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
+
+  // cadre doré
+  ctx.strokeStyle = gold; ctx.lineWidth = 4*S;
+  ctx.strokeRect(18*S,18*S,W-36*S,H-36*S);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = gold;
+  ctx.font = `700 ${16*S}px "JetBrains Mono", monospace`;
+  ctx.fillText((structure || 'LA PROMOTION DU FOOTBALL LOCAL').toUpperCase(), W/2, 70*S);
+
+  ctx.fillStyle = goldLight;
+  ctx.font = `400 ${44*S}px Anton, sans-serif`;
+  wrapCanvasText(ctx, matchType.toUpperCase(), W/2, 128*S, W*0.82, 50*S);
+
+  ctx.strokeStyle = gold; ctx.lineWidth = 2*S;
+  ctx.beginPath(); ctx.moveTo(W*0.2,186*S); ctx.lineTo(W*0.8,186*S); ctx.stroke();
+
+  // Bandeaux noms d'équipe
+  ctx.font = `700 ${22*S}px Oswald, sans-serif`;
+  ctx.fillStyle = '#0c0c0c';
+  [{ x:W*0.27, name:teamA.name, color:'#1E6B3E' }, { x:W*0.73, name:teamB.name, color:'#7A1E1E' }].forEach(t=>{
+    const tw = ctx.measureText(t.name.toUpperCase()).width + 40*S;
+    ctx.fillStyle = t.color;
+    ctx.beginPath(); ctx.roundRect(t.x-tw/2, 210*S, tw, 34*S, 6*S); ctx.fill();
+    ctx.fillStyle = '#F6F4EC';
+    ctx.fillText(t.name.toUpperCase(), t.x, 234*S);
+  });
+
+  // logos / cercles dorés
+  const circleY = H*0.40, circleR = 95*S, leftX = W*0.27, rightX = W*0.73;
+  function crest(x, img, team){
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x, circleY, circleR, 0, Math.PI*2); ctx.closePath();
+    ctx.fillStyle = '#1a1a1a'; ctx.fill();
+    ctx.lineWidth = 5*S; ctx.strokeStyle = gold; ctx.stroke();
+    ctx.clip();
+    if(img) ctx.drawImage(img, x-circleR, circleY-circleR, circleR*2, circleR*2);
+    else {
+      ctx.fillStyle = goldLight; ctx.font = `700 ${50*S}px "JetBrains Mono", monospace`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(team.name.slice(0,2).toUpperCase(), x, circleY+6*S);
+      ctx.textBaseline='alphabetic';
+    }
+    ctx.restore();
+  }
+  crest(leftX, imgA, teamA); crest(rightX, imgB, teamB);
+
+  ctx.fillStyle = gold; ctx.font = `400 ${52*S}px Anton, sans-serif`; ctx.textAlign='center';
+  ctx.fillText('VS', W/2, circleY+18*S);
+
+  // Bandeau parrain
+  if(parrain){
+    const bandH = parrainImg ? 92*S : 46*S;
+    const bandY = H*0.62;
+    ctx.fillStyle = 'rgba(216,176,74,0.12)';
+    ctx.fillRect(W*0.1, bandY, W*0.8, bandH);
+    ctx.strokeStyle = gold; ctx.lineWidth = 1.5*S;
+    ctx.strokeRect(W*0.1, bandY, W*0.8, bandH);
+    if(parrainImg){
+      const r = 34*S, cx = W*0.5, cy = bandY+r+10*S;
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.closePath();
+      ctx.strokeStyle = gold; ctx.lineWidth = 3*S; ctx.stroke(); ctx.clip();
+      ctx.drawImage(parrainImg, cx-r, cy-r, r*2, r*2);
+      ctx.restore();
+      ctx.fillStyle = goldLight; ctx.font = `700 ${13*S}px "JetBrains Mono", monospace`;
+      ctx.fillText('PARRAIN', W/2, bandY+68*S);
+      ctx.fillStyle = '#F6F4EC'; ctx.font = `700 ${19*S}px Oswald, sans-serif`;
+      ctx.fillText(parrain.toUpperCase(), W/2, bandY+88*S);
+    } else {
+      ctx.fillStyle = goldLight; ctx.font = `700 ${14*S}px "JetBrains Mono", monospace`;
+      ctx.fillText('PARRAIN', W/2, bandY+18*S);
+      ctx.fillStyle = '#F6F4EC'; ctx.font = `700 ${20*S}px Oswald, sans-serif`;
+      ctx.fillText(parrain.toUpperCase(), W/2, bandY+40*S);
+    }
+  }
+
+  // Bandeau horaires (double si renseigné)
+  const barY = H*0.72, sponsorBandH = 110*S, barBottom = H - sponsorBandH;
+  ctx.fillStyle = 'rgba(216,176,74,0.06)'; ctx.fillRect(0, barY, W, barBottom-barY);
+  ctx.strokeStyle = gold; ctx.lineWidth = 2*S;
+  ctx.beginPath(); ctx.moveTo(0,barY); ctx.lineTo(W,barY); ctx.stroke();
+
+  if(heure1 || heure2){
+    const slots = [{l:label1, h:heure1, x:W*0.27},{l:label2, h:heure2, x:W*0.73}];
+    slots.forEach(sl=>{
+      ctx.fillStyle = gold; ctx.font = `700 ${16*S}px "JetBrains Mono", monospace`;
+      ctx.fillText(sl.l.toUpperCase(), sl.x, barY+40*S);
+      ctx.fillStyle = '#F6F4EC'; ctx.font = `400 ${34*S}px Anton, sans-serif`;
+      ctx.fillText((sl.h||'—')+'H', sl.x, barY+82*S);
+      ctx.fillStyle = 'rgba(246,244,236,0.55)'; ctx.font = `400 ${14*S}px "JetBrains Mono", monospace`;
+      ctx.fillText('COUP D\'ENVOI', sl.x, barY+102*S);
+    });
+  } else {
+    ctx.fillStyle = gold; ctx.font = `700 ${16*S}px "JetBrains Mono", monospace`;
+    ctx.fillText('DATE & HEURE', W*0.27, barY+40*S);
+    ctx.fillText('LIEU', W*0.73, barY+40*S);
+    ctx.fillStyle = '#F6F4EC'; ctx.font = `400 ${24*S}px Oswald, sans-serif`;
+    wrapCanvasText(ctx, `${date||'—'} • ${heure||'—'}`, W*0.27, barY+72*S, 260*S, 30*S);
+    wrapCanvasText(ctx, lieu||'—', W*0.73, barY+72*S, 260*S, 30*S);
+  }
+
+  return drawSponsorBand(ctx, W, barBottom, sponsorBandH, S, gold, goldLight);
+}
+
+// ---------- Modèle « Vert National » ----------
+function drawVertNational({ ctx, W, H, S, teamA, teamB, imgA, imgB, matchType, heure, lieu, date, structure, parrain, parrainImg, label1, heure1, label2, heure2 }){
+  const green = '#1E7A3C', greenDark = '#0E4A22', gold = '#F2C744';
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'#123A22'); grad.addColorStop(0.55,greenDark); grad.addColorStop(1,'#081D10');
+  ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#F6F4EC';
+  ctx.font = `700 ${16*S}px "JetBrains Mono", monospace`;
+  ctx.fillText((structure || 'ORGANISÉ PAR').toUpperCase(), W/2, 66*S);
+
+  ctx.fillStyle = gold;
+  ctx.font = `400 ${64*S}px Anton, sans-serif`;
+  wrapCanvasText(ctx, matchType.toUpperCase(), W/2, 148*S, W*0.86, 66*S);
+
+  ctx.fillStyle = '#F6F4EC';
+  ctx.font = `700 ${20*S}px Oswald, sans-serif`;
+  ctx.fillText(`${teamA.name.toUpperCase()}  vs  ${teamB.name.toUpperCase()}`, W/2, 236*S);
+
+  // logos
+  const circleY = H*0.36, circleR = 90*S, leftX = W*0.27, rightX = W*0.73;
+  function crest(x, img, team){
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x, circleY, circleR, 0, Math.PI*2); ctx.closePath();
+    ctx.fillStyle = greenDark; ctx.fill();
+    ctx.lineWidth = 5*S; ctx.strokeStyle = gold; ctx.stroke();
+    ctx.clip();
+    if(img) ctx.drawImage(img, x-circleR, circleY-circleR, circleR*2, circleR*2);
+    else {
+      ctx.fillStyle = '#F6F4EC'; ctx.font = `700 ${48*S}px "JetBrains Mono", monospace`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(team.name.slice(0,2).toUpperCase(), x, circleY+6*S);
+      ctx.textBaseline='alphabetic';
+    }
+    ctx.restore();
+  }
+  crest(leftX, imgA, teamA); crest(rightX, imgB, teamB);
+  ctx.fillStyle = gold; ctx.font = `400 ${48*S}px Anton, sans-serif`; ctx.textAlign='center';
+  ctx.fillText('VS', W/2, circleY+16*S);
+
+  // bloc date
+  const boxY = H*0.58;
+  ctx.fillStyle = 'rgba(255,255,255,0.07)';
+  ctx.beginPath(); ctx.roundRect(W*0.08, boxY, W*0.84, 64*S, 10*S); ctx.fill();
+  ctx.fillStyle = gold; ctx.font = `700 ${28*S}px Anton, sans-serif`; ctx.textAlign='left';
+  ctx.fillText((date||'—').toUpperCase(), W*0.12, boxY+40*S);
+  ctx.font = `400 ${16*S}px "JetBrains Mono", monospace`; ctx.fillStyle = '#F6F4EC';
+  ctx.fillText('MATCH D\'OUVERTURE', W*0.12, boxY+58*S);
+
+  const boxY2 = boxY + 74*S;
+  ctx.fillStyle = 'rgba(255,255,255,0.07)';
+  ctx.beginPath(); ctx.roundRect(W*0.08, boxY2, W*0.84, 54*S, 10*S); ctx.fill();
+  ctx.textAlign='left'; ctx.fillStyle = gold; ctx.font = `700 ${18*S}px Oswald, sans-serif`;
+  if(heure1 || heure2){
+    ctx.fillText(`${label1.toUpperCase()} : ${heure1||'—'}H`, W*0.12, boxY2+22*S);
+    ctx.fillText(`${label2.toUpperCase()} : ${heure2||'—'}H`, W*0.12, boxY2+44*S);
+  } else {
+    ctx.fillText(`COUP D'ENVOI : ${heure||'—'}`, W*0.12, boxY2+32*S);
+  }
+
+  const boxY3 = boxY2 + 64*S;
+  ctx.fillStyle = 'rgba(255,255,255,0.07)';
+  ctx.beginPath(); ctx.roundRect(W*0.08, boxY3, W*0.84, 44*S, 10*S); ctx.fill();
+  ctx.fillStyle = '#F6F4EC'; ctx.font = `700 ${18*S}px Oswald, sans-serif`;
+  ctx.fillText('📍 ' + (lieu||'—').toUpperCase(), W*0.12, boxY3+28*S);
+
+  let afterY = boxY3 + 60*S;
+  if(parrain){
+    ctx.textAlign='center';
+    if(parrainImg){
+      const r = 40*S, cx = W/2, cy = afterY + r - 6*S;
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.closePath();
+      ctx.strokeStyle = gold; ctx.lineWidth = 3*S; ctx.stroke(); ctx.clip();
+      ctx.drawImage(parrainImg, cx-r, cy-r, r*2, r*2);
+      ctx.restore();
+      afterY = cy + r + 14*S;
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = `400 ${14*S}px "JetBrains Mono", monospace`;
+    ctx.fillText('SOUS LE HAUT PARRAINAGE DE', W/2, afterY);
+    ctx.fillStyle = gold; ctx.font = `700 ${22*S}px Oswald, sans-serif`;
+    ctx.fillText(parrain.toUpperCase(), W/2, afterY+28*S);
+    afterY += 44*S;
+  }
+
+  ctx.textAlign='center';
+  ctx.fillStyle = 'rgba(246,244,236,0.7)'; ctx.font = `italic 400 ${16*S}px Oswald, sans-serif`;
+  ctx.fillText('Le Football Amateur, Notre Passion !', W/2, Math.min(afterY+18*S, H-140*S));
+
+  const sponsorBandH = 110*S, barBottom = H - sponsorBandH;
+  return drawSponsorBand(ctx, W, barBottom, sponsorBandH, S, gold, '#F6F4EC');
+}
+
+// ---------- Modèle « Grande Finale (trophée) » ----------
+async function drawFinaleTrophee({ ctx, W, H, S, teamA, teamB, imgA, imgB, matchType, heure, lieu, date, structure, parrain, parrainImg, entree, loge }){
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'#8FCBF0'); grad.addColorStop(0.4,'#4FA3D8'); grad.addColorStop(1,'#0E4A7A');
+  ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
+
+  ctx.save();
+  ctx.globalAlpha = 0.15; ctx.fillStyle = '#ffffff';
+  for(let i=0;i<3;i++){
+    ctx.beginPath();
+    ctx.ellipse(W/2, H*0.02 + i*40*S, W*0.7, 30*S, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  ctx.textAlign = 'center';
+  if(parrain){
+    if(parrainImg){
+      const r = 34*S, cx = W/2, cy = 46*S;
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.closePath();
+      ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.strokeStyle = '#F2C744'; ctx.lineWidth = 3*S; ctx.stroke(); ctx.clip();
+      ctx.drawImage(parrainImg, cx-r, cy-r, r*2, r*2);
+      ctx.restore();
+      ctx.fillStyle = '#0E4A7A'; ctx.font = `700 ${14*S}px "JetBrains Mono", monospace`;
+      ctx.fillText('INVITÉ D\'HONNEUR', W/2, cy+r+16*S);
+      ctx.font = `700 ${16*S}px Oswald, sans-serif`;
+      ctx.fillText(parrain.toUpperCase(), W/2, cy+r+36*S);
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.beginPath(); ctx.roundRect(W*0.18, 30*S, W*0.64, 32*S, 8*S); ctx.fill();
+      ctx.fillStyle = '#0E4A7A'; ctx.font = `700 ${13*S}px "JetBrains Mono", monospace`;
+      ctx.fillText('INVITÉ D\'HONNEUR : ' + parrain.toUpperCase(), W/2, 51*S);
+    }
+  }
+
+  ctx.fillStyle = '#F6F4EC';
+  ctx.font = `400 ${58*S}px Anton, sans-serif`;
+  ctx.strokeStyle = '#0E4A7A'; ctx.lineWidth = 3*S;
+  ctx.strokeText(matchType.toUpperCase(), W/2, 130*S);
+  ctx.fillText(matchType.toUpperCase(), W/2, 130*S);
+
+  ctx.fillStyle = 'rgba(246,244,236,0.65)'; ctx.font = `700 ${16*S}px "JetBrains Mono", monospace`;
+  ctx.fillText((structure||'').toUpperCase(), W/2, 160*S);
+
+  // équipes de part et d'autre du trophée
+  const y = H*0.42;
+  ctx.font = `700 ${26*S}px Oswald, sans-serif`;
+  ctx.fillStyle = '#F6F4EC';
+  wrapCanvasText(ctx, teamA.name.toUpperCase(), W*0.24, y-10*S, W*0.34, 30*S);
+  wrapCanvasText(ctx, teamB.name.toUpperCase(), W*0.76, y-10*S, W*0.34, 30*S);
+
+  function crest(x, img, team){
+    const r = 78*S;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x, y+70*S, r, 0, Math.PI*2); ctx.closePath();
+    ctx.fillStyle = '#0E4A7A'; ctx.fill();
+    ctx.lineWidth = 5*S; ctx.strokeStyle = '#F2C744'; ctx.stroke();
+    ctx.clip();
+    if(img) ctx.drawImage(img, x-r, y+70*S-r, r*2, r*2);
+    else {
+      ctx.fillStyle = '#F6F4EC'; ctx.font = `700 ${40*S}px "JetBrains Mono", monospace`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(team.name.slice(0,2).toUpperCase(), x, y+70*S+6*S);
+      ctx.textBaseline='alphabetic';
+    }
+    ctx.restore();
+  }
+  crest(W*0.24, imgA, teamA); crest(W*0.76, imgB, teamB);
+
+  ctx.font = `500 ${70*S}px sans-serif`; ctx.fillText('🏆', W/2, y+95*S);
+  ctx.fillStyle = '#0E4A7A'; ctx.font = `400 ${44*S}px Anton, sans-serif`;
+  ctx.fillText('VS', W/2, y+150*S);
+
+  // bandeau infos
+  const barY = H*0.72, sponsorBandH = 110*S, barBottom = H - sponsorBandH;
+  ctx.fillStyle = 'rgba(14,74,122,0.55)'; ctx.fillRect(0, barY, W, barBottom-barY);
+  ctx.fillStyle = '#F2C744'; ctx.font = `700 ${15*S}px "JetBrains Mono", monospace`;
+  ctx.fillText((date||'—') + '  •  ' + (heure||'—') + '  •  ' + (lieu||'—'), W/2, barY+34*S);
+
+  if(entree || loge){
+    const chipsY = barY + 56*S;
+    const chips = [];
+    if(entree) chips.push(`ENTRÉE : ${entree}`);
+    if(loge) chips.push(`LOGE : ${loge}`);
+    ctx.font = `700 ${14*S}px Oswald, sans-serif`;
+    let totalW = 0;
+    const widths = chips.map(c=>{ const w = ctx.measureText(c).width + 30*S; totalW += w+14*S; return w; });
+    let cx = W/2 - totalW/2;
+    chips.forEach((c,i)=>{
+      const w = widths[i];
+      ctx.fillStyle = '#F2C744';
+      ctx.beginPath(); ctx.roundRect(cx, chipsY, w, 30*S, 15*S); ctx.fill();
+      ctx.fillStyle = '#0E4A7A'; ctx.fillText(c, cx+w/2, chipsY+20*S);
+      cx += w + 14*S;
+    });
+  }
+
+  ctx.fillStyle = 'rgba(246,244,236,0.85)'; ctx.font = `italic 400 ${15*S}px Oswald, sans-serif`;
+  ctx.fillText('Le Football, Une Passion, Unité Notre Force', W/2, barY+94*S);
+
+  return drawSponsorBand(ctx, W, barBottom, sponsorBandH, S, '#F2C744', '#F6F4EC');
+}
+
+// ---------- Bandeau sponsor partagé entre les modèles ----------
+async function drawSponsorBand(ctx, W, barBottom, bandH, S, lineColor, textColor){
+  ctx.save();
   ctx.fillStyle = 'rgba(255,255,255,0.04)';
-  ctx.fillRect(0, barBottom, W, sponsorBandH);
-  ctx.strokeStyle = 'rgba(87,194,240,0.4)';
+  ctx.fillRect(0, barBottom, W, bandH);
+  ctx.strokeStyle = lineColor;
   ctx.lineWidth = 1*S;
   ctx.beginPath(); ctx.moveTo(0,barBottom); ctx.lineTo(W,barBottom); ctx.stroke();
 
-  ctx.fillStyle = 'rgba(234,246,255,0.5)';
+  ctx.fillStyle = textColor;
   ctx.font = `700 ${12*S}px "JetBrains Mono", monospace`;
   ctx.textAlign = 'center';
   ctx.fillText('PARTENAIRE', W/2, barBottom+22*S);
@@ -2195,23 +2686,51 @@ async function generatePoster(){
       ctx.drawImage(sponsorImg, W/2 - dw/2, barBottom + 30*S, dw, dh);
     }
   }
+  ctx.restore();
+}
+
+// ---------- Finalisation commune : boutons télécharger / archiver ----------
+function finalizePoster(canvas, teamA, teamB, entryBase){
+  const safe = (s)=> String(s).replace(/[^a-z0-9]+/gi,'_');
+  const baseName = `affiche_${safe(teamA.name)}_vs_${safe(teamB.name)}`;
 
   const downloadBtn = document.getElementById('poster-download');
   downloadBtn.style.display = 'inline-block';
   downloadBtn.onclick = ()=>{
     const link = document.createElement('a');
-    const safe = (s)=> String(s).replace(/[^a-z0-9]+/gi,'_');
-    link.download = `affiche_${safe(teamA.name)}_vs_${safe(teamB.name)}.png`;
+    link.download = `${baseName}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
+  };
+
+  const downloadPdfBtn = document.getElementById('poster-download-pdf');
+  downloadPdfBtn.style.display = 'inline-block';
+  downloadPdfBtn.onclick = async ()=>{
+    let jspdfLib;
+    try{ jspdfLib = await loadJsPdf(); }
+    catch(e){
+      alert("Le module PDF n'a pas pu se charger (connexion internet requise). Utilisez le PNG en attendant.");
+      return;
+    }
+    const { jsPDF } = jspdfLib;
+    // Un point PDF = 1/72 pouce. On garde les proportions exactes du canevas
+    // en le traitant comme une image de 96 DPI, format sur-mesure (pas de marges).
+    const wPt = canvas.width * 72 / 96;
+    const hPt = canvas.height * 72 / 96;
+    const pdf = new jsPDF({
+      orientation: wPt > hPt ? 'landscape' : 'portrait',
+      unit: 'pt',
+      format: [wPt, hPt]
+    });
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, wPt, hPt);
+    pdf.save(`${baseName}.pdf`);
   };
 
   const saveArchiveBtn = document.getElementById('poster-save-archive');
   saveArchiveBtn.style.display = 'inline-block';
   saveArchiveBtn.onclick = ()=>{
     saveCurrentPosterToArchive({
-      matchType, teamAId: teamA.id, teamBId: teamB.id,
-      date, heure, lieu, structure,
+      ...entryBase, teamAId: teamA.id, teamBId: teamB.id,
       sponsorDataUrl: posterSponsorDataUrl,
       dataUrl: canvas.toDataURL('image/png'),
       teamAName: teamA.name, teamBName: teamB.name
@@ -2254,7 +2773,8 @@ function renderPosterArchive(){
         <button data-action="reuse">↺ Réutiliser</button>
         <button data-action="rename">✎ Renommer</button>
         <button data-action="duplicate">⧉ Dupliquer</button>
-        ${p.dataUrl ? '<button data-action="download" aria-label="Télécharger cette affiche">⬇</button>' : ''}
+        ${p.dataUrl ? '<button data-action="download" aria-label="Télécharger cette affiche (PNG)">⬇ PNG</button>' : ''}
+        ${p.dataUrl ? '<button data-action="download-pdf" aria-label="Télécharger cette affiche (PDF)">⬇ PDF</button>' : ''}
         <button data-action="delete" class="danger" aria-label="Supprimer cette affiche">🗑</button>
       </div>
     </div>
@@ -2266,6 +2786,8 @@ function renderPosterArchive(){
     card.querySelector('[data-action="duplicate"]').onclick = ()=> duplicatePosterInArchive(id);
     const dl = card.querySelector('[data-action="download"]');
     if(dl) dl.onclick = ()=> downloadPosterFromArchive(id);
+    const dlPdf = card.querySelector('[data-action="download-pdf"]');
+    if(dlPdf) dlPdf.onclick = ()=> downloadPosterPdfFromArchive(id);
     card.querySelector('[data-action="delete"]').onclick = ()=> deletePosterInArchive(id);
   });
 }
@@ -2279,6 +2801,17 @@ function reusePosterFromArchive(id){
   document.getElementById('poster-lieu').value = p.lieu || '';
   document.getElementById('poster-date').value = p.date || '';
   document.getElementById('poster-structure').value = p.structure || '';
+  document.getElementById('poster-template').value = p.template || 'nocturne';
+  document.getElementById('poster-parrain').value = p.parrain || '';
+  posterParrainPhotoDataUrl = p.parrainPhotoDataUrl || null;
+  document.getElementById('poster-parrain-photo').value = '';
+  document.getElementById('poster-label1').value = p.label1 || 'CADET';
+  document.getElementById('poster-heure1').value = p.heure1 || '';
+  document.getElementById('poster-label2').value = p.label2 || 'SENIOR';
+  document.getElementById('poster-heure2').value = p.heure2 || '';
+  document.getElementById('poster-entree').value = p.entree || '';
+  document.getElementById('poster-loge').value = p.loge || '';
+  toggleTemplateFields();
   posterSponsorDataUrl = p.sponsorDataUrl || null;
   generatePoster();
 }
@@ -2308,6 +2841,25 @@ function downloadPosterFromArchive(id){
   link.href = p.dataUrl;
   link.click();
 }
+function downloadPosterPdfFromArchive(id){
+  const p = (state.posters||[]).find(x=>x.id===id);
+  if(!p || !p.dataUrl) return;
+  loadJsPdf().then(jspdfLib=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const { jsPDF } = jspdfLib;
+      const wPt = img.width * 72 / 96;
+      const hPt = img.height * 72 / 96;
+      const pdf = new jsPDF({ orientation: wPt > hPt ? 'landscape' : 'portrait', unit: 'pt', format: [wPt, hPt] });
+      pdf.addImage(p.dataUrl, 'PNG', 0, 0, wPt, hPt);
+      const safe = (s)=> String(s).replace(/[^a-z0-9]+/gi,'_');
+      pdf.save(`affiche_${safe(p.name)}.pdf`);
+    };
+    img.src = p.dataUrl;
+  }).catch(()=>{
+    alert("Le module PDF n'a pas pu se charger (connexion internet requise). Utilisez le PNG en attendant.");
+  });
+}
 function deletePosterInArchive(id){
   const p = (state.posters||[]).find(x=>x.id===id);
   if(!p) return;
@@ -2322,6 +2874,13 @@ document.getElementById('poster-sponsor').addEventListener('change', (e)=>{
   if(!file){ posterSponsorDataUrl = null; return; }
   const reader = new FileReader();
   reader.onload = ()=>{ posterSponsorDataUrl = reader.result; };
+  reader.readAsDataURL(file);
+});
+document.getElementById('poster-parrain-photo').addEventListener('change', (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file){ posterParrainPhotoDataUrl = null; return; }
+  const reader = new FileReader();
+  reader.onload = ()=>{ posterParrainPhotoDataUrl = reader.result; };
   reader.readAsDataURL(file);
 });
 document.getElementById('open-poster').onclick = openPosterModal;
