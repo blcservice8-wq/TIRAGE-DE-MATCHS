@@ -451,6 +451,28 @@
   .poster-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
   .poster-form .field{margin-bottom:0;}
   .poster-form .field[data-tpl-field].tpl-hidden{display:none;}
+  .pv-modal{max-width:860px;}
+  .pv-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+  .pv-form .field.full{grid-column:1/-1;}
+  .pv-form textarea{width:100%;resize:vertical;font-family:inherit;background:rgba(0,0,0,0.2);border:1px solid var(--line);border-radius:8px;color:inherit;padding:8px 10px;}
+  .pv-section-title{font-weight:700;text-transform:uppercase;font-size:13px;letter-spacing:0.03em;color:#57C2F0;border-top:1px solid var(--line);padding-top:12px;margin-top:4px;}
+  .pv-checks{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px;}
+  .pv-checks label{display:flex;align-items:center;gap:6px;font-weight:400;}
+  #pv-preview{margin-top:14px;max-height:50vh;overflow:auto;border-radius:10px;}
+  .pv-print-area{display:none;}
+  .pv-doc{background:#fff;color:#111;padding:34px 40px;font-family:Georgia,'Times New Roman',serif;max-width:800px;margin:0 auto;line-height:1.55;font-size:13.5px;}
+  .pv-doc .pv-logo{display:block;max-height:70px;margin:0 auto 10px;}
+  .pv-doc h1{text-align:center;font-size:19px;margin:0 0 2px;text-transform:uppercase;letter-spacing:0.03em;}
+  .pv-doc h2{text-align:center;font-size:15px;margin:0 0 4px;text-transform:uppercase;letter-spacing:0.05em;}
+  .pv-doc .pv-num{text-align:right;font-weight:700;margin-bottom:8px;}
+  .pv-doc .pv-meta{margin-bottom:4px;}
+  .pv-doc .pv-section{margin-top:16px;}
+  .pv-doc .pv-section-h{font-weight:700;text-transform:uppercase;text-align:center;margin:14px 0 8px;}
+  .pv-doc p{margin:4px 0;}
+  .pv-doc .pv-sign-row{display:flex;justify-content:space-between;gap:20px;margin-top:50px;text-align:center;}
+  .pv-doc .pv-sign-row > div{flex:1;}
+  .pv-doc .pv-sign-row .pv-sign-line{margin-top:46px;border-top:1px solid #333;padding-top:4px;font-weight:700;}
+  .pv-doc .pv-sign-row .pv-sig-img{max-height:60px;max-width:90%;margin-top:6px;}
   .poster-canvas-wrap{
     background:rgba(0,0,0,0.2);border:1px solid var(--line);border-radius:10px;
     padding:10px;display:flex;justify-content:center;margin-bottom:14px;
@@ -462,6 +484,8 @@
     .steps, header, .no-print, .pitch-decor, .poster-overlay{display:none !important;}
     .panel{border:none;background:white;}
     .match, .poule-card{border:1px solid #999;}
+    body.printing-pv .wrap{display:none !important;}
+    body.printing-pv .pv-print-area{display:block !important;}
   }
 </style>
 </head>
@@ -488,6 +512,7 @@
     </div>
     <div class="header-actions">
       <button class="ghost" id="open-poster">🖼 Affiche MATCH du jour</button>
+      <button class="ghost" id="open-pv">📋 PV de match</button>
       <span id="save-indicator" class="save-indicator" title="État de la sauvegarde locale"></span>
       <button class="ghost" id="export-data">⬇ Exporter</button>
       <button class="ghost" id="import-data-btn">⬆ Importer</button>
@@ -625,6 +650,164 @@
   </div>
 </div>
 
+<div class="poster-overlay" id="pv-overlay">
+  <div class="poster-modal pv-modal" role="dialog" aria-modal="true" aria-labelledby="pv-modal-title">
+    <div class="poster-modal-head">
+      <h2 id="pv-modal-title">Procès-verbal (PV) de match</h2>
+      <button class="ghost" id="pv-close" aria-label="Fermer">✕</button>
+    </div>
+
+    <div class="pv-form">
+      <div class="field">
+        <label for="pv-structure">Structure organisatrice (ligue / ODCAV...)</label>
+        <input id="pv-structure" type="text" placeholder="Ex : ODCAV FATICK">
+      </div>
+      <div class="field">
+        <label for="pv-organe">Organe rédacteur</label>
+        <input id="pv-organe" type="text" placeholder="Ex : CQRP">
+      </div>
+      <div class="field">
+        <label for="pv-numero">N° du PV</label>
+        <input id="pv-numero" type="text" placeholder="Ex : 2023-29/CQRP/ODCAV/FK">
+      </div>
+      <div class="field">
+        <label for="pv-lieu">Lieu de séance</label>
+        <input id="pv-lieu" type="text" placeholder="Ex : Fatick">
+      </div>
+      <div class="field">
+        <label for="pv-date">Date de séance</label>
+        <input id="pv-date" type="date">
+      </div>
+      <div class="field">
+        <label for="pv-debut">Début de séance</label>
+        <input id="pv-debut" class="time-text" type="text" placeholder="hh:mm" maxlength="5" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label for="pv-fin">Fin de séance</label>
+        <input id="pv-fin" class="time-text" type="text" placeholder="hh:mm" maxlength="5" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label for="pv-logo">Logo / cachet (optionnel)</label>
+        <input id="pv-logo" type="file" accept="image/*">
+      </div>
+      <div class="field full">
+        <label for="pv-presents">Présents (un nom par ligne)</label>
+        <textarea id="pv-presents" rows="3" placeholder="Ex : Amath Sarr DIOUF – Amath NDONG – Cheikh NDIAYE"></textarea>
+      </div>
+      <div class="field full">
+        <label for="pv-ordre">Ordre du jour</label>
+        <input id="pv-ordre" type="text" placeholder="Ex : Homologation de la rencontre ... du ...">
+      </div>
+
+      <div class="field full">
+        <label>Documents de travail</label>
+        <div class="pv-checks">
+          <label><input type="checkbox" id="pv-doc-rg" checked> RG</label>
+          <label><input type="checkbox" id="pv-doc-feuilles" checked> Feuilles de match</label>
+          <label><input type="checkbox" id="pv-doc-rapports" checked> Rapports</label>
+          <label><input type="checkbox" id="pv-doc-licences"> Licences</label>
+        </div>
+        <input id="pv-doc-autre" type="text" placeholder="Autres documents (optionnel)">
+      </div>
+
+      <div class="field full pv-section-title">Match concerné</div>
+      <div class="field">
+        <label for="pv-teamA">Équipe A</label>
+        <select id="pv-teamA"></select>
+      </div>
+      <div class="field">
+        <label for="pv-teamB">Équipe B</label>
+        <select id="pv-teamB"></select>
+      </div>
+      <div class="field">
+        <label for="pv-match-date">Date du match</label>
+        <input id="pv-match-date" type="date">
+      </div>
+      <div class="field">
+        <label for="pv-match-lieu">Lieu du match</label>
+        <input id="pv-match-lieu" type="text">
+      </div>
+
+      <div class="field full pv-section-title">1) Rapport de l'arbitre</div>
+      <div class="field full">
+        <label for="pv-arbitre-nom">Nom de l'arbitre</label>
+        <input id="pv-arbitre-nom" type="text">
+      </div>
+      <div class="field full">
+        <label for="pv-arbitre-rapport">Contenu du rapport</label>
+        <textarea id="pv-arbitre-rapport" rows="4" placeholder="Faits, décisions, incidents relevés par l'arbitre..."></textarea>
+      </div>
+
+      <div class="field full pv-section-title">2) Rapport du délégué de match</div>
+      <div class="field full">
+        <label for="pv-delegue-nom">Nom du délégué</label>
+        <input id="pv-delegue-nom" type="text">
+      </div>
+      <div class="field full">
+        <label for="pv-delegue-rapport">Contenu du rapport</label>
+        <textarea id="pv-delegue-rapport" rows="4" placeholder="Observations du délégué de match..."></textarea>
+      </div>
+
+      <div class="field full pv-section-title">3) Rapport du superviseur (anonyme)</div>
+      <div class="field full">
+        <label for="pv-superviseur-rapport">Contenu du rapport (identité non divulguée dans le PV)</label>
+        <textarea id="pv-superviseur-rapport" rows="4" placeholder="Observations générales, comportement du public, incidents..."></textarea>
+      </div>
+
+      <div class="field full pv-section-title">Réserve(s) formulée(s) (optionnel)</div>
+      <div class="field full">
+        <textarea id="pv-reserves" rows="3" placeholder="Qui a formulé la réserve, sur quel motif, confirmation dans les délais..."></textarea>
+      </div>
+
+      <div class="field full pv-section-title">Décision — Par ces motifs</div>
+      <div class="field full">
+        <textarea id="pv-decision" rows="4" placeholder="Ex : Donne match gagné à ... (03 points) / perdu par pénalité à ... / Suspend le joueur ..."></textarea>
+      </div>
+
+      <div class="field full pv-section-title">Sanctions disciplinaires (optionnel)</div>
+      <div class="field full">
+        <textarea id="pv-sanctions" rows="3" placeholder="Amendes, avertissements, suspensions liés au comportement..."></textarea>
+      </div>
+
+      <div class="field full pv-section-title">Clôture &amp; signatures</div>
+      <div class="field">
+        <label for="pv-secretaire">Secrétaire de séance</label>
+        <input id="pv-secretaire" type="text">
+      </div>
+      <div class="field">
+        <label for="pv-secretaire-sig">Signature du secrétaire (photo, optionnel)</label>
+        <input id="pv-secretaire-sig" type="file" accept="image/*">
+      </div>
+      <div class="field">
+        <label for="pv-president">Président de séance</label>
+        <input id="pv-president" type="text">
+      </div>
+      <div class="field">
+        <label for="pv-president-sig">Signature du président (photo, optionnel)</label>
+        <input id="pv-president-sig" type="file" accept="image/*">
+      </div>
+      <div class="field">
+        <label for="pv-homologue">Homologué le</label>
+        <input id="pv-homologue" type="date">
+      </div>
+    </div>
+
+    <div class="row-actions">
+      <button class="primary" id="pv-generate">🔄 Générer / Recharger l'aperçu</button>
+      <button class="ghost" id="pv-print" style="display:none;">🖨 Imprimer le PV</button>
+      <button class="ghost" id="pv-save-archive" style="display:none;">💾 Enregistrer dans mes PV</button>
+    </div>
+
+    <div id="pv-preview"></div>
+
+    <div class="poster-archive">
+      <h3>Mes PV enregistrés</h3>
+      <div id="pv-archive-list" class="poster-archive-list"></div>
+    </div>
+  </div>
+</div>
+<div id="pv-print-area" class="pv-print-area"></div>
+
 <script>
 const STORAGE_KEY = 'tirage_de_poule_v1';
 
@@ -682,7 +865,8 @@ let state = {
   pouleMatches: null, // {A:[{aId,bId,scoreA,scoreB}, ...], ...}
   finalPhase: null,   // crossed knockout for the 2-poule format {demi1WinnerId, demi2WinnerId, finalWinnerId, dates}
   bracket: null,      // {rounds: [[match,...], ...]}
-  posters: []         // {id, name, createdAt, matchType, teamAId, teamBId, date, heure, lieu, structure, sponsorDataUrl, dataUrl}
+  posters: [],        // {id, name, createdAt, matchType, teamAId, teamBId, date, heure, lieu, structure, sponsorDataUrl, dataUrl}
+  pvs: []             // {id, name, createdAt, ...champs du PV..., logoDataUrl}
 };
 
 function uid(){ return Math.random().toString(36).slice(2,9); }
@@ -716,7 +900,8 @@ function snapshotState(){
     pouleMatches: state.pouleMatches,
     finalPhase: state.finalPhase,
     bracket: state.bracket,
-    posters: state.posters
+    posters: state.posters,
+    pvs: state.pvs
   };
 }
 function showSaveIndicator(ok, msg){
@@ -739,6 +924,7 @@ function save(){
     try{
       const lightSnapshot = snapshotState();
       lightSnapshot.posters = (lightSnapshot.posters || []).map(p=>({ ...p, dataUrl: null, sponsorDataUrl: null, parrainPhotoDataUrl: null, thumbnailOnly: true }));
+      lightSnapshot.pvs = (lightSnapshot.pvs || []).map(p=>({ ...p, logoDataUrl: null, secretaireSigDataUrl: null, presidentSigDataUrl: null, thumbnailOnly: true }));
       localStorage.setItem(STORAGE_KEY, JSON.stringify(lightSnapshot));
       showSaveIndicator(false, '⚠ Espace insuffisant : affiches non sauvegardées');
       return false;
@@ -763,6 +949,7 @@ function loadState(){
     state.finalPhase = data.finalPhase || null;
     state.bracket = data.bracket || null;
     state.posters = Array.isArray(data.posters) ? data.posters : [];
+    state.pvs = Array.isArray(data.pvs) ? data.pvs : [];
     return true;
   }catch(e){
     console.warn('Restauration locale impossible :', e);
@@ -770,7 +957,7 @@ function loadState(){
   }
 }
 function newTournament(){
-  const ok = confirm('Créer un nouveau tournoi ?\n\nToutes les données actuelles (équipes, poules, matchs, résultats, grille finale, affiches enregistrées) seront définitivement supprimées de cet appareil.\n\nAstuce : utilisez "Exporter" avant si vous voulez garder une copie.');
+  const ok = confirm('Créer un nouveau tournoi ?\n\nToutes les données actuelles (équipes, poules, matchs, résultats, grille finale, affiches et PV enregistrés) seront définitivement supprimées de cet appareil.\n\nAstuce : utilisez "Exporter" avant si vous voulez garder une copie.');
   if(!ok) return;
   state = {
     step: 0,
@@ -781,7 +968,8 @@ function newTournament(){
     pouleMatches: null,
     finalPhase: null,
     bracket: null,
-    posters: []
+    posters: [],
+    pvs: []
   };
   save();
   render();
@@ -820,6 +1008,7 @@ function importDataFromFile(file){
     state.finalPhase = data.finalPhase || null;
     state.bracket = data.bracket || null;
     state.posters = Array.isArray(data.posters) ? data.posters : [];
+    state.pvs = Array.isArray(data.pvs) ? data.pvs : [];
     save();
     render();
   };
@@ -1985,7 +2174,306 @@ document.addEventListener('keydown', (e)=>{
   if(e.key === 'Escape' && document.getElementById('poster-overlay').classList.contains('open')){
     closePosterModal();
   }
+  if(e.key === 'Escape' && document.getElementById('pv-overlay').classList.contains('open')){
+    closePvModal();
+  }
 });
+
+// ---------- Procès-verbal (PV) de match ----------
+let pvLogoDataUrl = null;
+let pvSecretaireSigDataUrl = null;
+let pvPresidentSigDataUrl = null;
+let pvLastFocusedEl = null;
+
+function populatePvTeamSelects(){
+  const selA = document.getElementById('pv-teamA');
+  const selB = document.getElementById('pv-teamB');
+  const opts = state.teams.map(t=>`<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+  selA.innerHTML = '<option value="">—</option>' + opts;
+  selB.innerHTML = '<option value="">—</option>' + opts;
+}
+
+function openPvModal(){
+  document.getElementById('pv-structure').value = state.config.responsable || '';
+  document.getElementById('pv-organe').value = '';
+  document.getElementById('pv-numero').value = '';
+  document.getElementById('pv-lieu').value = '';
+  document.getElementById('pv-date').value = '';
+  document.getElementById('pv-debut').value = '';
+  document.getElementById('pv-fin').value = '';
+  pvLogoDataUrl = null;
+  document.getElementById('pv-logo').value = '';
+  document.getElementById('pv-presents').value = '';
+  document.getElementById('pv-ordre').value = '';
+  document.getElementById('pv-doc-rg').checked = true;
+  document.getElementById('pv-doc-feuilles').checked = true;
+  document.getElementById('pv-doc-rapports').checked = true;
+  document.getElementById('pv-doc-licences').checked = false;
+  document.getElementById('pv-doc-autre').value = '';
+  populatePvTeamSelects();
+  document.getElementById('pv-match-date').value = state.config.date || '';
+  document.getElementById('pv-match-lieu').value = '';
+  document.getElementById('pv-arbitre-nom').value = '';
+  document.getElementById('pv-arbitre-rapport').value = '';
+  document.getElementById('pv-delegue-nom').value = '';
+  document.getElementById('pv-delegue-rapport').value = '';
+  document.getElementById('pv-superviseur-rapport').value = '';
+  document.getElementById('pv-reserves').value = '';
+  document.getElementById('pv-decision').value = '';
+  document.getElementById('pv-sanctions').value = '';
+  document.getElementById('pv-secretaire').value = '';
+  pvSecretaireSigDataUrl = null;
+  document.getElementById('pv-secretaire-sig').value = '';
+  document.getElementById('pv-president').value = '';
+  pvPresidentSigDataUrl = null;
+  document.getElementById('pv-president-sig').value = '';
+  document.getElementById('pv-homologue').value = '';
+  document.getElementById('pv-preview').innerHTML = '';
+  document.getElementById('pv-print').style.display = 'none';
+  document.getElementById('pv-save-archive').style.display = 'none';
+  renderPvArchive();
+  pvLastFocusedEl = document.activeElement;
+  document.getElementById('pv-overlay').classList.add('open');
+  document.getElementById('pv-close').focus();
+}
+function closePvModal(){
+  document.getElementById('pv-overlay').classList.remove('open');
+  if(pvLastFocusedEl && typeof pvLastFocusedEl.focus === 'function'){
+    pvLastFocusedEl.focus();
+  }
+}
+document.getElementById('pv-logo').addEventListener('change', (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file){ pvLogoDataUrl = null; return; }
+  const reader = new FileReader();
+  reader.onload = ()=>{ pvLogoDataUrl = reader.result; };
+  reader.readAsDataURL(file);
+});
+document.getElementById('pv-secretaire-sig').addEventListener('change', (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file){ pvSecretaireSigDataUrl = null; return; }
+  const reader = new FileReader();
+  reader.onload = ()=>{ pvSecretaireSigDataUrl = reader.result; };
+  reader.readAsDataURL(file);
+});
+document.getElementById('pv-president-sig').addEventListener('change', (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file){ pvPresidentSigDataUrl = null; return; }
+  const reader = new FileReader();
+  reader.onload = ()=>{ pvPresidentSigDataUrl = reader.result; };
+  reader.readAsDataURL(file);
+});
+
+function readPvForm(){
+  const teamA = state.teams.find(t=>t.id===document.getElementById('pv-teamA').value);
+  const teamB = state.teams.find(t=>t.id===document.getElementById('pv-teamB').value);
+  const docs = [];
+  if(document.getElementById('pv-doc-rg').checked) docs.push('RG');
+  if(document.getElementById('pv-doc-feuilles').checked) docs.push('Feuilles de match');
+  if(document.getElementById('pv-doc-rapports').checked) docs.push('Rapports');
+  if(document.getElementById('pv-doc-licences').checked) docs.push('Licences');
+  const autre = document.getElementById('pv-doc-autre').value.trim();
+  if(autre) docs.push(autre);
+  return {
+    structure: document.getElementById('pv-structure').value,
+    organe: document.getElementById('pv-organe').value,
+    numero: document.getElementById('pv-numero').value,
+    lieu: document.getElementById('pv-lieu').value,
+    date: document.getElementById('pv-date').value,
+    debut: document.getElementById('pv-debut').value,
+    fin: document.getElementById('pv-fin').value,
+    presents: document.getElementById('pv-presents').value,
+    ordre: document.getElementById('pv-ordre').value,
+    documents: docs,
+    teamAName: teamA ? teamA.name : '',
+    teamBName: teamB ? teamB.name : '',
+    matchDate: document.getElementById('pv-match-date').value,
+    matchLieu: document.getElementById('pv-match-lieu').value,
+    arbitreNom: document.getElementById('pv-arbitre-nom').value,
+    arbitreRapport: document.getElementById('pv-arbitre-rapport').value,
+    delegueNom: document.getElementById('pv-delegue-nom').value,
+    delegueRapport: document.getElementById('pv-delegue-rapport').value,
+    superviseurRapport: document.getElementById('pv-superviseur-rapport').value,
+    reserves: document.getElementById('pv-reserves').value,
+    decision: document.getElementById('pv-decision').value,
+    sanctions: document.getElementById('pv-sanctions').value,
+    secretaire: document.getElementById('pv-secretaire').value,
+    secretaireSigDataUrl: pvSecretaireSigDataUrl,
+    president: document.getElementById('pv-president').value,
+    presidentSigDataUrl: pvPresidentSigDataUrl,
+    homologue: document.getElementById('pv-homologue').value,
+    logoDataUrl: pvLogoDataUrl
+  };
+}
+
+function fmtPvDate(d){
+  if(!d) return '—';
+  const parts = String(d).split('-');
+  if(parts.length!==3) return escapeHtml(d);
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+function nl2p(text){
+  return String(text||'').split('\n').map(l=>l.trim()).filter(Boolean)
+    .map(l=>`<p>${escapeHtml(l)}</p>`).join('') || '<p>—</p>';
+}
+
+// Construit le document imprimable du PV (aperçu écran + zone d'impression
+// partagent exactement le même rendu, pour que ce qu'on voit soit ce qu'on imprime).
+function buildPvDoc(pv){
+  const matchLabel = (pv.teamAName || pv.teamBName)
+    ? `${escapeHtml(pv.teamAName||'—')} <em>vs</em> ${escapeHtml(pv.teamBName||'—')}`
+    : '—';
+  return `
+    <div class="pv-doc">
+      ${pv.logoDataUrl ? `<img class="pv-logo" src="${pv.logoDataUrl}" alt="Logo">` : ''}
+      <h1>${escapeHtml(pv.structure || 'STRUCTURE ORGANISATRICE')}</h1>
+      ${pv.organe ? `<h2>${escapeHtml(pv.organe)}</h2>` : ''}
+      <div class="pv-num">PV N° ${escapeHtml(pv.numero || '—')} — ${escapeHtml(pv.lieu||'—')} le ${fmtPvDate(pv.date)}</div>
+      <p class="pv-meta"><strong>Présents :</strong> ${escapeHtml((pv.presents||'').split('\n').filter(Boolean).join(' – ')) || '—'}</p>
+      <p class="pv-meta"><strong>Ordre du jour :</strong> ${escapeHtml(pv.ordre || '—')}</p>
+      <p class="pv-meta"><strong>Début de séance :</strong> ${escapeHtml(pv.debut||'—')} ${pv.fin ? `&nbsp;&nbsp;<strong>Fin de séance :</strong> ${escapeHtml(pv.fin)}` : ''}</p>
+      <p class="pv-meta"><strong>Documents de travail :</strong> ${pv.documents.map(escapeHtml).join(' – ') || '—'}</p>
+
+      <p class="pv-meta" style="text-align:center;margin-top:14px;"><strong>${matchLabel}</strong><br>
+        ${fmtPvDate(pv.matchDate)} — ${escapeHtml(pv.matchLieu||'—')}
+      </p>
+
+      <div class="pv-section-h">1) Rapport de l'arbitre</div>
+      ${pv.arbitreNom ? `<p><strong>Arbitre :</strong> ${escapeHtml(pv.arbitreNom)}</p>` : ''}
+      ${nl2p(pv.arbitreRapport)}
+
+      <div class="pv-section-h">2) Rapport du délégué de match</div>
+      ${pv.delegueNom ? `<p><strong>Délégué :</strong> ${escapeHtml(pv.delegueNom)}</p>` : ''}
+      ${nl2p(pv.delegueRapport)}
+
+      <div class="pv-section-h">3) Rapport du superviseur (anonyme)</div>
+      ${nl2p(pv.superviseurRapport)}
+
+      ${pv.reserves.trim() ? `<div class="pv-section-h">Réserve(s) formulée(s)</div>${nl2p(pv.reserves)}` : ''}
+
+      <div class="pv-section-h">Par ces motifs</div>
+      ${nl2p(pv.decision)}
+
+      ${pv.sanctions.trim() ? `<div class="pv-section-h">Sanctions disciplinaires</div>${nl2p(pv.sanctions)}` : ''}
+
+      <div class="pv-sign-row">
+        <div>Le Secrétaire de séance${pv.secretaireSigDataUrl ? `<br><img class="pv-sig-img" src="${pv.secretaireSigDataUrl}" alt="Signature">` : ''}<div class="pv-sign-line">${escapeHtml(pv.secretaire||'—')}</div></div>
+        <div>Homologué le ${fmtPvDate(pv.homologue)}<div class="pv-sign-line">${escapeHtml(pv.structure||'—')}</div></div>
+        <div>Le Président de séance${pv.presidentSigDataUrl ? `<br><img class="pv-sig-img" src="${pv.presidentSigDataUrl}" alt="Signature">` : ''}<div class="pv-sign-line">${escapeHtml(pv.president||'—')}</div></div>
+      </div>
+    </div>`;
+}
+
+function generatePvPreview(){
+  const pv = readPvForm();
+  if(!pv.structure){
+    alert("Merci de renseigner au moins la structure organisatrice.");
+    return;
+  }
+  const html = buildPvDoc(pv);
+  document.getElementById('pv-preview').innerHTML = html;
+  document.getElementById('pv-print-area').innerHTML = html;
+  document.getElementById('pv-print').style.display = 'inline-block';
+  document.getElementById('pv-save-archive').style.display = 'inline-block';
+
+  document.getElementById('pv-print').onclick = ()=> printPV();
+  document.getElementById('pv-save-archive').onclick = ()=> savePvToArchive(pv);
+}
+
+function printPV(){
+  document.body.classList.add('printing-pv');
+  window.print();
+}
+window.addEventListener('afterprint', ()=>{
+  document.body.classList.remove('printing-pv');
+});
+
+function savePvToArchive(pv){
+  const entry = {
+    ...pv,
+    id: uid(),
+    createdAt: Date.now(),
+    name: `PV ${pv.numero || 'sans n°'} — ${pv.teamAName||'?'} vs ${pv.teamBName||'?'}`
+  };
+  state.pvs = state.pvs || [];
+  state.pvs.unshift(entry);
+  save();
+  renderPvArchive();
+}
+function renderPvArchive(){
+  const container = document.getElementById('pv-archive-list');
+  const list = state.pvs || [];
+  if(list.length === 0){
+    container.innerHTML = '<div class="poster-archive-empty">Aucun PV enregistré pour l\'instant. Générez un aperçu puis cliquez sur « Enregistrer dans mes PV ».</div>';
+    return;
+  }
+  container.innerHTML = list.map(p=>`
+    <div class="poster-card" data-id="${p.id}">
+      <div class="poster-card-name" style="white-space:normal;" title="${escapeHtml(p.name)}">${escapeHtml(p.name)} — ${fmtPvDate(p.date)}</div>
+      <div class="poster-card-actions">
+        <button data-action="view">👁 Voir / réimprimer</button>
+        <button data-action="delete" class="danger" aria-label="Supprimer ce PV">🗑</button>
+      </div>
+    </div>
+  `).join('');
+  container.querySelectorAll('.poster-card').forEach(card=>{
+    const id = card.dataset.id;
+    const view = card.querySelector('[data-action="view"]');
+    if(view) view.onclick = ()=> reusePvFromArchive(id);
+    const del = card.querySelector('[data-action="delete"]');
+    if(del) del.onclick = ()=> deletePvFromArchive(id);
+  });
+}
+function reusePvFromArchive(id){
+  const p = (state.pvs||[]).find(x=>x.id===id);
+  if(!p) return;
+  document.getElementById('pv-structure').value = p.structure || '';
+  document.getElementById('pv-organe').value = p.organe || '';
+  document.getElementById('pv-numero').value = p.numero || '';
+  document.getElementById('pv-lieu').value = p.lieu || '';
+  document.getElementById('pv-date').value = p.date || '';
+  document.getElementById('pv-debut').value = p.debut || '';
+  document.getElementById('pv-fin').value = p.fin || '';
+  document.getElementById('pv-presents').value = p.presents || '';
+  document.getElementById('pv-ordre').value = p.ordre || '';
+  document.getElementById('pv-doc-rg').checked = (p.documents||[]).includes('RG');
+  document.getElementById('pv-doc-feuilles').checked = (p.documents||[]).includes('Feuilles de match');
+  document.getElementById('pv-doc-rapports').checked = (p.documents||[]).includes('Rapports');
+  document.getElementById('pv-doc-licences').checked = (p.documents||[]).includes('Licences');
+  populatePvTeamSelects();
+  const teamA = state.teams.find(t=>t.name===p.teamAName);
+  const teamB = state.teams.find(t=>t.name===p.teamBName);
+  if(teamA) document.getElementById('pv-teamA').value = teamA.id;
+  if(teamB) document.getElementById('pv-teamB').value = teamB.id;
+  document.getElementById('pv-match-date').value = p.matchDate || '';
+  document.getElementById('pv-match-lieu').value = p.matchLieu || '';
+  document.getElementById('pv-arbitre-nom').value = p.arbitreNom || '';
+  document.getElementById('pv-arbitre-rapport').value = p.arbitreRapport || '';
+  document.getElementById('pv-delegue-nom').value = p.delegueNom || '';
+  document.getElementById('pv-delegue-rapport').value = p.delegueRapport || '';
+  document.getElementById('pv-superviseur-rapport').value = p.superviseurRapport || '';
+  document.getElementById('pv-reserves').value = p.reserves || '';
+  document.getElementById('pv-decision').value = p.decision || '';
+  document.getElementById('pv-sanctions').value = p.sanctions || '';
+  document.getElementById('pv-secretaire').value = p.secretaire || '';
+  document.getElementById('pv-president').value = p.president || '';
+  document.getElementById('pv-homologue').value = p.homologue || '';
+  pvLogoDataUrl = p.logoDataUrl || null;
+  document.getElementById('pv-logo').value = '';
+  pvSecretaireSigDataUrl = p.secretaireSigDataUrl || null;
+  document.getElementById('pv-secretaire-sig').value = '';
+  pvPresidentSigDataUrl = p.presidentSigDataUrl || null;
+  document.getElementById('pv-president-sig').value = '';
+  generatePvPreview();
+}
+function deletePvFromArchive(id){
+  const p = (state.pvs||[]).find(x=>x.id===id);
+  if(!p) return;
+  if(!confirm(`Supprimer définitivement « ${p.name} » ?`)) return;
+  state.pvs = state.pvs.filter(x=>x.id!==id);
+  save();
+  renderPvArchive();
+}
 
 // ---------- Auto-remplissage depuis un match existant ----------
 const ROUND_NAME_TO_POSTER_TYPE = {
@@ -3135,12 +3623,18 @@ document.getElementById('poster-parrain-photo').addEventListener('change', (e)=>
   reader.readAsDataURL(file);
 });
 document.getElementById('open-poster').onclick = openPosterModal;
+document.getElementById('open-pv').onclick = openPvModal;
 document.getElementById('open-account').onclick = openAccountScreen;
 document.getElementById('do-logout').onclick = logout;
 document.getElementById('poster-close').onclick = closePosterModal;
 document.getElementById('poster-generate').onclick = ()=> generatePoster();
 document.getElementById('poster-overlay').addEventListener('click', (e)=>{
   if(e.target.id === 'poster-overlay') closePosterModal();
+});
+document.getElementById('pv-close').onclick = closePvModal;
+document.getElementById('pv-generate').onclick = ()=> generatePvPreview();
+document.getElementById('pv-overlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'pv-overlay') closePvModal();
 });
 
 document.getElementById('header-logo').innerHTML = z13cLogoSvg();
