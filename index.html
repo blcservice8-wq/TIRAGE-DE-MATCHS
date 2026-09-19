@@ -2,8 +2,19 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Tirage de Poule — Grille jusqu'en finale</title>
+
+<!-- PWA : installable sur Android (Chrome) et iPhone (Safari > Partager > Sur l'écran d'accueil) -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#123B5E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tirage 13C">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -473,6 +484,17 @@
   .pv-doc .pv-sign-row > div{flex:1;}
   .pv-doc .pv-sign-row .pv-sign-line{margin-top:46px;border-top:1px solid #333;padding-top:4px;font-weight:700;}
   .pv-doc .pv-sign-row .pv-sig-img{max-height:60px;max-width:90%;margin-top:6px;}
+  .history-card{background:rgba(246,244,236,0.05);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+  .history-card .history-meta{font-size:13px;}
+  .history-card .history-meta .history-label{font-weight:700;}
+  .history-card .history-meta .history-date{opacity:0.65;font-size:12px;}
+  .history-card .history-actions{display:flex;gap:6px;}
+  .history-card .history-actions button{
+    background:rgba(246,244,236,0.08);border:1px solid var(--line);border-radius:5px;
+    color:var(--chalk);font-size:12px;padding:5px 10px;cursor:pointer;
+  }
+  .history-card .history-actions button.danger{color:var(--card-red-text);}
+  .history-empty{font-size:13px;color:rgba(246,244,236,0.55);text-align:center;padding:20px 0;}
   .poster-canvas-wrap{
     background:rgba(0,0,0,0.2);border:1px solid var(--line);border-radius:10px;
     padding:10px;display:flex;justify-content:center;margin-bottom:14px;
@@ -513,6 +535,7 @@
     <div class="header-actions">
       <button class="ghost" id="open-poster">🖼 Affiche MATCH du jour</button>
       <button class="ghost" id="open-pv">📋 PV de match</button>
+      <button class="ghost" id="open-history">🕒 Historique</button>
       <span id="save-indicator" class="save-indicator" title="État de la sauvegarde locale"></span>
       <button class="ghost" id="export-data">⬇ Exporter</button>
       <button class="ghost" id="import-data-btn">⬆ Importer</button>
@@ -795,6 +818,7 @@
     <div class="row-actions">
       <button class="primary" id="pv-generate">🔄 Générer / Recharger l'aperçu</button>
       <button class="ghost" id="pv-print" style="display:none;">🖨 Imprimer le PV</button>
+      <button class="ghost" id="pv-download-pdf" style="display:none;">⬇ Télécharger PV (PDF)</button>
       <button class="ghost" id="pv-save-archive" style="display:none;">💾 Enregistrer dans mes PV</button>
     </div>
 
@@ -807,6 +831,22 @@
   </div>
 </div>
 <div id="pv-print-area" class="pv-print-area"></div>
+
+<div class="poster-overlay" id="history-overlay">
+  <div class="poster-modal" role="dialog" aria-modal="true" aria-labelledby="history-modal-title">
+    <div class="poster-modal-head">
+      <h2 id="history-modal-title">Historique local</h2>
+      <button class="ghost" id="history-close" aria-label="Fermer">✕</button>
+    </div>
+    <p style="font-size:13px;color:rgba(246,244,236,0.65);margin-top:0;">
+      Instantanés automatiques des tirages, poules, résultats et grille finale — conservés sur cet appareil. Les 30 derniers sont gardés.
+    </p>
+    <div class="row-actions">
+      <button class="danger ghost" id="history-clear">🗑 Vider l'historique</button>
+    </div>
+    <div id="history-list" style="margin-top:12px;display:flex;flex-direction:column;gap:8px;"></div>
+  </div>
+</div>
 
 <script>
 const STORAGE_KEY = 'tirage_de_poule_v1';
@@ -827,6 +867,47 @@ function loadJsPdf(){
     document.head.appendChild(s);
   });
   return jsPdfLoadPromise;
+}
+
+// html2canvas n'est chargé qu'à la demande (téléchargement PV en PDF) : même
+// logique hors-ligne-par-défaut que jsPDF.
+let html2canvasLoadPromise = null;
+function loadHtml2Canvas(){
+  if(window.html2canvas) return Promise.resolve(window.html2canvas);
+  if(html2canvasLoadPromise) return html2canvasLoadPromise;
+  html2canvasLoadPromise = new Promise((resolve, reject)=>{
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    s.onload = ()=> resolve(window.html2canvas);
+    s.onerror = ()=>{ html2canvasLoadPromise = null; reject(new Error('html2canvas indisponible')); };
+    document.head.appendChild(s);
+  });
+  return html2canvasLoadPromise;
+}
+
+// Convertit un nœud HTML (le document PV mis en page) en PDF paginé A4.
+async function htmlNodeToPdf(node, filename){
+  const html2canvasFn = await loadHtml2Canvas();
+  const { jsPDF } = await loadJsPdf();
+  const canvas = await html2canvasFn(node, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+  const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const ratio = pageW / canvas.width;
+  const sliceHeightPx = pageH / ratio;
+  let y = 0, first = true;
+  while(y < canvas.height){
+    const h = Math.min(sliceHeightPx, canvas.height - y);
+    const pageCanvas = document.createElement('canvas');
+    pageCanvas.width = canvas.width;
+    pageCanvas.height = h;
+    pageCanvas.getContext('2d').drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+    if(!first) pdf.addPage();
+    pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', 0, 0, pageW, h*ratio);
+    y += h;
+    first = false;
+  }
+  pdf.save(filename);
 }
 
 // Polyfill : ctx.roundRect() n'existe pas sur tous les navigateurs/webviews
@@ -866,7 +947,8 @@ let state = {
   finalPhase: null,   // crossed knockout for the 2-poule format {demi1WinnerId, demi2WinnerId, finalWinnerId, dates}
   bracket: null,      // {rounds: [[match,...], ...]}
   posters: [],        // {id, name, createdAt, matchType, teamAId, teamBId, date, heure, lieu, structure, sponsorDataUrl, dataUrl}
-  pvs: []             // {id, name, createdAt, ...champs du PV..., logoDataUrl}
+  pvs: [],            // {id, name, createdAt, ...champs du PV..., logoDataUrl}
+  history: []         // {id, ts, label, snapshot:{teams, nbPoules, poules, pouleMatches, finalPhase, bracket}}
 };
 
 function uid(){ return Math.random().toString(36).slice(2,9); }
@@ -901,7 +983,8 @@ function snapshotState(){
     finalPhase: state.finalPhase,
     bracket: state.bracket,
     posters: state.posters,
-    pvs: state.pvs
+    pvs: state.pvs,
+    history: state.history
   };
 }
 function showSaveIndicator(ok, msg){
@@ -914,8 +997,30 @@ function showSaveIndicator(ok, msg){
 // Les affiches (PNG en base64) sont lourdes : si le quota localStorage est
 // dépassé, on retente sans les images d'affiches plutôt que de perdre tout
 // le tournoi (équipes/poules/scores/bracket restent prioritaires).
+// Historique de sauvegarde locale : capture des instantanés (tirages, poules,
+// résultats, grille) pour pouvoir revenir en arrière. Auto-capturé à chaque
+// save() (avec anti-spam de 15s pour ne pas saturer pendant la saisie), ou
+// immédiatement pour les actions marquantes (tirage, validation manuelle...).
+let lastHistoryPushAt = 0;
+function pushHistorySnapshot(label, force){
+  const now = Date.now();
+  if(!force && now - lastHistoryPushAt < 15000) return;
+  const snapObj = {
+    teams: state.teams, nbPoules: state.nbPoules, poules: state.poules,
+    pouleMatches: state.pouleMatches, finalPhase: state.finalPhase, bracket: state.bracket
+  };
+  const snapStr = JSON.stringify(snapObj);
+  state.history = state.history || [];
+  if(state.history[0] && JSON.stringify(state.history[0].snapshot) === snapStr) return;
+  state.history.unshift({ id: uid(), ts: now, label, snapshot: JSON.parse(snapStr) });
+  if(state.history.length > 30) state.history.length = 30;
+  lastHistoryPushAt = now;
+}
+const HISTORY_STEP_LABELS = {0:'Configuration', 1:'Liste des équipes', 2:'Poules & résultats', 3:'Grille finale'};
+
 function save(){
   try{
+    pushHistorySnapshot(HISTORY_STEP_LABELS[state.step] || 'Mise à jour', false);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshotState()));
     showSaveIndicator(true);
     return true;
@@ -925,6 +1030,7 @@ function save(){
       const lightSnapshot = snapshotState();
       lightSnapshot.posters = (lightSnapshot.posters || []).map(p=>({ ...p, dataUrl: null, sponsorDataUrl: null, parrainPhotoDataUrl: null, thumbnailOnly: true }));
       lightSnapshot.pvs = (lightSnapshot.pvs || []).map(p=>({ ...p, logoDataUrl: null, secretaireSigDataUrl: null, presidentSigDataUrl: null, thumbnailOnly: true }));
+      lightSnapshot.history = (lightSnapshot.history || []).slice(0, 10);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(lightSnapshot));
       showSaveIndicator(false, '⚠ Espace insuffisant : affiches non sauvegardées');
       return false;
@@ -950,6 +1056,7 @@ function loadState(){
     state.bracket = data.bracket || null;
     state.posters = Array.isArray(data.posters) ? data.posters : [];
     state.pvs = Array.isArray(data.pvs) ? data.pvs : [];
+    state.history = Array.isArray(data.history) ? data.history : [];
     return true;
   }catch(e){
     console.warn('Restauration locale impossible :', e);
@@ -969,7 +1076,8 @@ function newTournament(){
     finalPhase: null,
     bracket: null,
     posters: [],
-    pvs: []
+    pvs: [],
+    history: []
   };
   save();
   render();
@@ -1009,6 +1117,7 @@ function importDataFromFile(file){
     state.bracket = data.bracket || null;
     state.posters = Array.isArray(data.posters) ? data.posters : [];
     state.pvs = Array.isArray(data.pvs) ? data.pvs : [];
+    state.history = Array.isArray(data.history) ? data.history : [];
     save();
     render();
   };
@@ -1702,6 +1811,12 @@ function runTirage(){
         demi1Lieu:'', demi2Lieu:'', finalLieu:'' }
     : null;
 
+  // Capturer l'instantané AVANT le rendu différé : renderPoulesResult() appelle
+  // save() (donc pushHistorySnapshot en mode générique) — le pousser ici en
+  // premier, avec le libellé précis, garantit qu'il n'est pas ensuite masqué
+  // par un doublon générique (déduplication sur contenu identique).
+  pushHistorySnapshot('Tirage automatique effectué', true);
+
   const urn = document.getElementById('urn');
   urn.innerHTML = '';
   letters.forEach((l,i)=>{
@@ -1788,6 +1903,7 @@ function validateManualPoules(){
         demi1Lieu:'', demi2Lieu:'', finalLieu:'' }
     : null;
   document.getElementById('manual-poules-editor').style.display = 'none';
+  pushHistorySnapshot('Poules réparties manuellement', true);
   renderPoulesResult();
 }
 
@@ -2087,6 +2203,7 @@ function advanceTeam(ri, mi, slotIdx){
     // if that changes an already-decided later match, we keep it simple: clear downstream winner state
     clearDownstream(ri+1, Math.floor(mi/2));
   }
+  pushHistorySnapshot('Équipe qualifiée en grille finale', true);
   render();
 }
 
@@ -2177,6 +2294,9 @@ document.addEventListener('keydown', (e)=>{
   if(e.key === 'Escape' && document.getElementById('pv-overlay').classList.contains('open')){
     closePvModal();
   }
+  if(e.key === 'Escape' && document.getElementById('history-overlay').classList.contains('open')){
+    closeHistoryModal();
+  }
 });
 
 // ---------- Procès-verbal (PV) de match ----------
@@ -2230,6 +2350,7 @@ function openPvModal(){
   document.getElementById('pv-homologue').value = '';
   document.getElementById('pv-preview').innerHTML = '';
   document.getElementById('pv-print').style.display = 'none';
+  document.getElementById('pv-download-pdf').style.display = 'none';
   document.getElementById('pv-save-archive').style.display = 'none';
   renderPvArchive();
   pvLastFocusedEl = document.activeElement;
@@ -2374,9 +2495,31 @@ function generatePvPreview(){
   document.getElementById('pv-preview').innerHTML = html;
   document.getElementById('pv-print-area').innerHTML = html;
   document.getElementById('pv-print').style.display = 'inline-block';
+  document.getElementById('pv-download-pdf').style.display = 'inline-block';
   document.getElementById('pv-save-archive').style.display = 'inline-block';
 
   document.getElementById('pv-print').onclick = ()=> printPV();
+  const dlPdfBtn = document.getElementById('pv-download-pdf');
+  dlPdfBtn.onclick = async ()=>{
+    const original = dlPdfBtn.textContent;
+    dlPdfBtn.disabled = true; dlPdfBtn.textContent = '⏳ Génération...';
+    // On capture depuis #pv-print-area (hors écran, hauteur naturelle complète)
+    // plutôt que l'aperçu visible : ce dernier est dans un conteneur à défilement
+    // (max-height + overflow:auto) qui tronquerait le PDF si le PV est long.
+    const printArea = document.getElementById('pv-print-area');
+    const prevCss = printArea.style.cssText;
+    printArea.style.cssText = 'display:block;position:fixed;left:-9999px;top:0;';
+    try{
+      const node = printArea.querySelector('.pv-doc');
+      const safe = (s)=> String(s||'sans_numero').replace(/[^a-z0-9]+/gi,'_');
+      await htmlNodeToPdf(node, `PV_${safe(pv.numero)}.pdf`);
+    }catch(e){
+      alert("Le module PDF n'a pas pu se charger (connexion internet requise). Utilisez l'impression classique en attendant.");
+    }finally{
+      printArea.style.cssText = prevCss;
+      dlPdfBtn.disabled = false; dlPdfBtn.textContent = original;
+    }
+  };
   document.getElementById('pv-save-archive').onclick = ()=> savePvToArchive(pv);
 }
 
@@ -2412,6 +2555,7 @@ function renderPvArchive(){
       <div class="poster-card-name" style="white-space:normal;" title="${escapeHtml(p.name)}">${escapeHtml(p.name)} — ${fmtPvDate(p.date)}</div>
       <div class="poster-card-actions">
         <button data-action="view">👁 Voir / réimprimer</button>
+        <button data-action="download-pdf">⬇ PDF</button>
         <button data-action="delete" class="danger" aria-label="Supprimer ce PV">🗑</button>
       </div>
     </div>
@@ -2420,9 +2564,30 @@ function renderPvArchive(){
     const id = card.dataset.id;
     const view = card.querySelector('[data-action="view"]');
     if(view) view.onclick = ()=> reusePvFromArchive(id);
+    const dlPdf = card.querySelector('[data-action="download-pdf"]');
+    if(dlPdf) dlPdf.onclick = ()=> downloadPvPdfFromArchive(id, dlPdf);
     const del = card.querySelector('[data-action="delete"]');
     if(del) del.onclick = ()=> deletePvFromArchive(id);
   });
+}
+async function downloadPvPdfFromArchive(id, btn){
+  const p = (state.pvs||[]).find(x=>x.id===id);
+  if(!p) return;
+  const original = btn ? btn.textContent : null;
+  if(btn){ btn.disabled = true; btn.textContent = '⏳'; }
+  const temp = document.createElement('div');
+  temp.style.position = 'fixed'; temp.style.left = '-9999px'; temp.style.top = '0';
+  temp.innerHTML = buildPvDoc(p);
+  document.body.appendChild(temp);
+  try{
+    const safe = (s)=> String(s||'sans_numero').replace(/[^a-z0-9]+/gi,'_');
+    await htmlNodeToPdf(temp.querySelector('.pv-doc'), `PV_${safe(p.numero||p.name)}.pdf`);
+  }catch(e){
+    alert("Le module PDF n'a pas pu se charger (connexion internet requise).");
+  }finally{
+    document.body.removeChild(temp);
+    if(btn){ btn.disabled = false; btn.textContent = original; }
+  }
 }
 function reusePvFromArchive(id){
   const p = (state.pvs||[]).find(x=>x.id===id);
@@ -2473,6 +2638,81 @@ function deletePvFromArchive(id){
   state.pvs = state.pvs.filter(x=>x.id!==id);
   save();
   renderPvArchive();
+}
+
+// ---------- Historique local (tirages, poules, résultats, grille) ----------
+let historyLastFocusedEl = null;
+function fmtHistoryDate(ts){
+  const d = new Date(ts);
+  const pad = n=> String(n).padStart(2,'0');
+  return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function openHistoryModal(){
+  renderHistoryList();
+  historyLastFocusedEl = document.activeElement;
+  document.getElementById('history-overlay').classList.add('open');
+  document.getElementById('history-close').focus();
+}
+function closeHistoryModal(){
+  document.getElementById('history-overlay').classList.remove('open');
+  if(historyLastFocusedEl && typeof historyLastFocusedEl.focus === 'function'){
+    historyLastFocusedEl.focus();
+  }
+}
+function renderHistoryList(){
+  const container = document.getElementById('history-list');
+  const list = state.history || [];
+  if(list.length === 0){
+    container.innerHTML = '<div class="history-empty">Aucun instantané pour l\'instant. Il en apparaîtra un dès votre premier tirage ou résultat.</div>';
+    return;
+  }
+  container.innerHTML = list.map(h=>`
+    <div class="history-card" data-id="${h.id}">
+      <div class="history-meta">
+        <div class="history-label">${escapeHtml(h.label)}</div>
+        <div class="history-date">${fmtHistoryDate(h.ts)}</div>
+      </div>
+      <div class="history-actions">
+        <button data-action="restore">↩ Restaurer</button>
+        <button data-action="delete" class="danger">🗑</button>
+      </div>
+    </div>
+  `).join('');
+  container.querySelectorAll('.history-card').forEach(card=>{
+    const id = card.dataset.id;
+    const restoreBtn = card.querySelector('[data-action="restore"]');
+    if(restoreBtn) restoreBtn.onclick = ()=> restoreHistoryEntry(id);
+    const delBtn = card.querySelector('[data-action="delete"]');
+    if(delBtn) delBtn.onclick = ()=> deleteHistoryEntry(id);
+  });
+}
+function restoreHistoryEntry(id){
+  const h = (state.history||[]).find(x=>x.id===id);
+  if(!h) return;
+  if(!confirm(`Restaurer l'état « ${h.label} » du ${fmtHistoryDate(h.ts)} ?\n\nLes équipes, poules, résultats et la grille actuels seront remplacés par cette version.`)) return;
+  const snap = h.snapshot;
+  state.teams = snap.teams;
+  state.nbPoules = snap.nbPoules;
+  state.poules = snap.poules;
+  state.pouleMatches = snap.pouleMatches;
+  state.finalPhase = snap.finalPhase;
+  state.bracket = snap.bracket;
+  pushHistorySnapshot('Restauration depuis l\'historique', true);
+  save();
+  closeHistoryModal();
+  render();
+}
+function deleteHistoryEntry(id){
+  state.history = (state.history||[]).filter(x=>x.id!==id);
+  save();
+  renderHistoryList();
+}
+function clearHistory(){
+  if((state.history||[]).length === 0) return;
+  if(!confirm("Vider tout l'historique local ? Cette action est irréversible.")) return;
+  state.history = [];
+  save();
+  renderHistoryList();
 }
 
 // ---------- Auto-remplissage depuis un match existant ----------
@@ -3636,6 +3876,12 @@ document.getElementById('pv-generate').onclick = ()=> generatePvPreview();
 document.getElementById('pv-overlay').addEventListener('click', (e)=>{
   if(e.target.id === 'pv-overlay') closePvModal();
 });
+document.getElementById('open-history').onclick = openHistoryModal;
+document.getElementById('history-close').onclick = closeHistoryModal;
+document.getElementById('history-clear').onclick = clearHistory;
+document.getElementById('history-overlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'history-overlay') closeHistoryModal();
+});
 
 document.getElementById('header-logo').innerHTML = z13cLogoSvg();
 document.getElementById('export-data').onclick = exportData;
@@ -3649,6 +3895,18 @@ document.getElementById('new-tournament').onclick = newTournament;
 
 loadState();
 initAuth();
+
+// Enregistrement du service worker (app installable + hors-ligne).
+// N'échoue jamais silencieusement de façon bloquante : si indisponible
+// (navigateur trop ancien, ouverture en local file://), l'app continue de
+// fonctionner normalement, juste sans mise en cache hors-ligne.
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(err=>{
+      console.warn('Service worker non disponible :', err);
+    });
+  });
+}
 </script>
 </body>
 </html>
