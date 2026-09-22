@@ -657,6 +657,25 @@
         <input id="poster-sponsor" type="file" accept="image/*">
       </div>
     </div>
+
+    <div class="pv-section-title" style="margin-top:6px;">🤖 Génération par IA (Gemini) — optionnel</div>
+    <p style="font-size:12px;color:rgba(246,244,236,0.6);margin:4px 0 10px;">
+      Crée une affiche originale générée par l'IA à partir des informations ci-dessus (équipes, date, heure, lieu, structure). Nécessite une clé API Gemini gratuite (<a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color:#57C2F0;">aistudio.google.com</a>) — jamais partagée, stockée uniquement sur cet appareil.
+    </p>
+    <div class="poster-form" style="margin-bottom:10px;">
+      <div class="field full">
+        <label for="gemini-api-key">Clé API Gemini</label>
+        <input id="gemini-api-key" type="password" placeholder="Colle ta clé API ici" autocomplete="off">
+      </div>
+    </div>
+    <div class="row-actions">
+      <button class="ghost" type="button" id="gemini-generate">🤖 Générer une affiche IA</button>
+      <button class="ghost" type="button" id="gemini-download-png" style="display:none;">⬇ PNG</button>
+      <button class="ghost" type="button" id="gemini-download-pdf" style="display:none;">⬇ PDF</button>
+    </div>
+    <div id="gemini-status" style="font-size:13px;color:rgba(246,244,236,0.7);margin-top:6px;"></div>
+    <div id="gemini-result" style="margin-top:10px;"></div>
+
     <div class="poster-canvas-wrap">
       <canvas id="poster-canvas" width="800" height="1200"></canvas>
     </div>
@@ -2268,6 +2287,12 @@ function openPosterModal(){
   document.getElementById('poster-download').style.display = 'none';
   document.getElementById('poster-download-pdf').style.display = 'none';
   document.getElementById('poster-save-archive').style.display = 'none';
+  document.getElementById('gemini-api-key').value = localStorage.getItem(GEMINI_KEY_STORAGE) || '';
+  document.getElementById('gemini-status').textContent = '';
+  document.getElementById('gemini-result').innerHTML = '';
+  document.getElementById('gemini-download-png').style.display = 'none';
+  document.getElementById('gemini-download-pdf').style.display = 'none';
+  geminiImageDataUrl = null;
   renderPosterArchive();
   posterLastFocusedEl = document.activeElement;
   document.getElementById('poster-overlay').classList.add('open');
@@ -2281,6 +2306,115 @@ function toggleTemplateFields(){
   });
 }
 document.getElementById('poster-template').addEventListener('change', toggleTemplateFields);
+
+// ---------- Génération d'affiche par IA (Gemini) ----------
+// Clé API stockée séparément du tournoi (jamais dans state, donc jamais
+// incluse dans un export/sauvegarde partagé) ; appel direct depuis le
+// navigateur vers l'API Gemini officielle de Google avec la clé de
+// l'utilisateur — rien ne transite par un serveur intermédiaire.
+const GEMINI_KEY_STORAGE = 'tirage_de_poule_gemini_key';
+let geminiImageDataUrl = null;
+
+function buildGeminiPrompt(){
+  const teamA = state.teams.find(t=>t.id===document.getElementById('poster-teamA').value);
+  const teamB = state.teams.find(t=>t.id===document.getElementById('poster-teamB').value);
+  const matchType = document.getElementById('poster-type').value || 'MATCH DE FOOTBALL';
+  const date = document.getElementById('poster-date').value || '';
+  const heure = document.getElementById('poster-heure').value || '';
+  const lieu = document.getElementById('poster-lieu').value || '';
+  const structure = document.getElementById('poster-structure').value || '';
+  const parrain = document.getElementById('poster-parrain').value || '';
+
+  const lines = [
+    'Crée une affiche sportive professionnelle, verticale (format portrait), pour un match de football amateur, style graphisme moderne et dynamique (dégradés, typographie impactante, ballon et éléments de stade stylisés).',
+    `Titre / type de match : ${matchType}`
+  ];
+  if(teamA || teamB) lines.push(`Équipes : ${teamA ? teamA.name : '?'} contre ${teamB ? teamB.name : '?'}`);
+  if(date || heure) lines.push(`Date et heure : ${date || '—'} ${heure || ''}`.trim());
+  if(lieu) lines.push(`Lieu : ${lieu}`);
+  if(structure) lines.push(`Structure organisatrice : ${structure}`);
+  if(parrain) lines.push(`Parrain / invité d'honneur : ${parrain}`);
+  lines.push("N'inclure aucun visage ou photo de personne réelle. Composition propre, lisible, texte en français, sans fautes.");
+  return lines.join('\n');
+}
+
+async function generateGeminiPoster(){
+  const apiKey = document.getElementById('gemini-api-key').value.trim();
+  const statusEl = document.getElementById('gemini-status');
+  const resultEl = document.getElementById('gemini-result');
+  const btn = document.getElementById('gemini-generate');
+  if(!apiKey){
+    statusEl.textContent = "Merci de coller ta clé API Gemini ci-dessus (gratuite sur aistudio.google.com/app/apikey).";
+    return;
+  }
+  localStorage.setItem(GEMINI_KEY_STORAGE, apiKey);
+  const prompt = buildGeminiPrompt();
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ Génération en cours...';
+  statusEl.textContent = "Appel à l'IA Gemini... (peut prendre 10 à 30 secondes)";
+  document.getElementById('gemini-download-png').style.display = 'none';
+  document.getElementById('gemini-download-pdf').style.display = 'none';
+  geminiImageDataUrl = null;
+  resultEl.innerHTML = '';
+  try{
+    const resp = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }
+      })
+    });
+    if(!resp.ok){
+      const errText = await resp.text().catch(()=> '');
+      throw new Error(`Réponse ${resp.status} de Gemini. ${errText.slice(0,200)}`);
+    }
+    const data = await resp.json();
+    const parts = data?.candidates?.[0]?.content?.parts || [];
+    const imgPart = parts.find(p=> p.inlineData && p.inlineData.data);
+    if(!imgPart){
+      throw new Error("Aucune image reçue (le modèle a peut-être refusé la demande).");
+    }
+    const mime = imgPart.inlineData.mimeType || 'image/png';
+    geminiImageDataUrl = `data:${mime};base64,${imgPart.inlineData.data}`;
+    resultEl.innerHTML = `<img src="${geminiImageDataUrl}" alt="Affiche générée par IA" style="width:100%;max-width:340px;border-radius:8px;display:block;margin:0 auto;">`;
+    document.getElementById('gemini-download-png').style.display = 'inline-block';
+    document.getElementById('gemini-download-pdf').style.display = 'inline-block';
+    statusEl.textContent = "Affiche générée. Tu peux la télécharger en PNG ou PDF, ou en régénérer une autre.";
+  }catch(e){
+    statusEl.textContent = "Échec de la génération : " + e.message + " Vérifie ta clé API et ta connexion.";
+  }finally{
+    btn.disabled = false; btn.textContent = original;
+  }
+}
+
+function downloadGeminiPosterPng(){
+  if(!geminiImageDataUrl) return;
+  const link = document.createElement('a');
+  link.download = 'affiche_ia_gemini.png';
+  link.href = geminiImageDataUrl;
+  link.click();
+}
+async function downloadGeminiPosterPdf(){
+  if(!geminiImageDataUrl) return;
+  const btn = document.getElementById('gemini-download-pdf');
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳';
+  try{
+    const img = await loadImageAsync(geminiImageDataUrl);
+    const { jsPDF } = await loadJsPdf();
+    const wPt = img.width * 72 / 96;
+    const hPt = img.height * 72 / 96;
+    const pdf = new jsPDF({ orientation: wPt > hPt ? 'landscape' : 'portrait', unit: 'pt', format: [wPt, hPt] });
+    pdf.addImage(geminiImageDataUrl, 'PNG', 0, 0, wPt, hPt);
+    pdf.save('affiche_ia_gemini.pdf');
+  }catch(e){
+    alert("Le module PDF n'a pas pu se charger (connexion internet requise).");
+  }finally{
+    btn.disabled = false; btn.textContent = original;
+  }
+}
+
 function closePosterModal(){
   document.getElementById('poster-overlay').classList.remove('open');
   if(posterLastFocusedEl && typeof posterLastFocusedEl.focus === 'function'){
@@ -3868,6 +4002,9 @@ document.getElementById('open-account').onclick = openAccountScreen;
 document.getElementById('do-logout').onclick = logout;
 document.getElementById('poster-close').onclick = closePosterModal;
 document.getElementById('poster-generate').onclick = ()=> generatePoster();
+document.getElementById('gemini-generate').onclick = ()=> generateGeminiPoster();
+document.getElementById('gemini-download-png').onclick = ()=> downloadGeminiPosterPng();
+document.getElementById('gemini-download-pdf').onclick = ()=> downloadGeminiPosterPdf();
 document.getElementById('poster-overlay').addEventListener('click', (e)=>{
   if(e.target.id === 'poster-overlay') closePosterModal();
 });
